@@ -1,8 +1,8 @@
-# ANWAR — Golden Minute Emergency Response
+# Aegis999 — Golden Minute Emergency Response
 
 Repository for the **ACE Malaysia 2026: Gigabyte x Nvidia DGX Spark Hackathon**.
 
-ANWAR is an AI decision-support platform for ambulance dispatch in Greater Kuala Lumpur. It takes a 999 call from the moment it arrives and follows the patient all the way to hospital admission. The goal is to save the "golden minute" — the time lost between the call, the dispatch, the scene and the emergency department.
+Aegis999 is an AI decision-support platform for ambulance dispatch in Greater Kuala Lumpur. It takes a 999 call from the moment it arrives and follows the patient all the way to hospital admission. The goal is to save the "golden minute" — the time lost between the call, the dispatch, the scene and the emergency department.
 
 AI recommends and explains. A human dispatcher confirms every high-impact action.
 
@@ -288,4 +288,4 @@ node modules/workflow/lib/caseReducer.check.mjs   # Node >= 23 (strips .ts types
 - [SIGNAL_FUSION_INTEGRATION.md](SIGNAL_FUSION_INTEGRATION.md) and [module_docs/](module_docs/) — module integration contracts
 - [ROUTING_SETUP.md](ROUTING_SETUP.md) — OSRM setup
 
-> **Disclaimer:** ANWAR is a hackathon prototype for decision support. All patient data and calls are fictional. AI outputs are drafts, not clinical decisions.
+> **Disclaimer:** Aegis999 is a hackathon prototype for decision support. All patient data and calls are fictional. AI outputs are drafts, not clinical decisions.
