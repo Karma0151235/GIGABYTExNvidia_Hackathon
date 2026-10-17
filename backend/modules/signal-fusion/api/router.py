@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from importlib import import_module
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -10,6 +11,8 @@ from fastapi.responses import FileResponse
 schemas = import_module("backend.modules.signal-fusion.models.schemas")
 triage_service = import_module("backend.modules.signal-fusion.services.triage_service")
 engine_module = import_module("backend.modules.signal-fusion.services.fusion_engine")
+place_module = import_module("backend.modules.live-dispatch.services.mock_call_service")
+logger = logging.getLogger(__name__)
 engine = engine_module.engine
 InvalidTransition = engine_module.InvalidTransition
 RiskExpired = engine_module.RiskExpired
@@ -39,6 +42,19 @@ def operator_id(x_operator_id: str) -> str:
     if not actor or len(actor) > 120:
         raise HTTPException(422, "X-Operator-ID must contain 1 to 120 non-whitespace characters")
     return actor
+
+
+async def attach_dispatch_preview(result: dict) -> dict:
+    summary = result["summary"]
+    try:
+        preview = await place_module.preview_triage_summary(summary)
+    except Exception:
+        logger.exception("Could not plan a route for triaged call %s", summary["call_id"])
+        classification = {"emergency": "legit_distress", "spam": "scam", "silent": "misc"}[summary["call_class"]]
+        preview = {"call_id": summary["call_id"], "classification": classification,
+                   "routable": False, "reason": "Route preview unavailable; check local OSRM."}
+    result["dispatch_preview"] = place_module.publish_ingestion_preview(preview)
+    return result
 
 
 @router.get("/health")
@@ -167,17 +183,35 @@ async def triage_call(payload: schemas.TriageRequest):
     result = {"summary": summary, "path": [step.model_dump() for step in decision.path]}
     if decision.call_class != "emergency":
         # Silent and spam calls stop here; nothing enters fusion.
-        return result
+        return await attach_dispatch_preview(result)
 
     location = summary["location"]
+    if payload.latitude is not None:
+        location.update(lat=payload.latitude, lng=payload.longitude)
+        if not location["text"]:
+            location["text"] = "Caller-provided coordinates"
+    elif location["lat"] is None and location["text"]:
+        try:
+            place = place_module.resolve_place(location["text"])
+        except place_module.PlaceNotFound:
+            pass
+        else:
+            location.update(lat=place["coordinate"][1], lng=place["coordinate"][0])
+    if location["lat"] is None or location["lng"] is None:
+        # Do not create a dispatchable incident at a guessed city-centre coordinate.
+        if "location" not in summary["missing"]:
+            summary["missing"].append("location")
+        return await attach_dispatch_preview(result)
+    summary["missing"] = [item for item in summary["missing"] if item != "location"]
     signal = schemas.SignalIn(
         source="CALL",
+        external_id=summary["call_id"],
         caller=payload.caller,
         transcript=transcript,
-        location=location["text"] or "Kuala Lumpur (unresolved)",
-        # Fusion needs coordinates; unresolved calls pin to KL centre and stay flagged in `missing`.
-        latitude=location["lat"] or payload.latitude or triage_service.KL_CENTER[0],
-        longitude=location["lng"] or payload.longitude or triage_service.KL_CENTER[1],
+        location=location["text"],
+        latitude=location["lat"],
+        longitude=location["lng"],
+        severity={"P1": 95, "P2": 80, "P3": 65}[decision.priority],
         metadata={
             "call_id": summary["call_id"],
             "triage_priority": decision.priority,
@@ -192,8 +226,8 @@ async def triage_call(payload: schemas.TriageRequest):
     try:
         result["ingestion"] = engine.ingest_report(model_payload(signal))
     except StorageUnavailable as exc:
-        raise storage_error(exc) from exc
-    return result
+        result["ingestion_error"] = str(exc)
+    return await attach_dispatch_preview(result)
 
 
 @router.post("/signals", response_model=schemas.Signal, status_code=201)

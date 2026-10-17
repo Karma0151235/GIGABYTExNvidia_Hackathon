@@ -10,13 +10,14 @@ import {
   Timer,
 } from "lucide-react";
 import DispatchMap from "@/components/emergency/DispatchMap";
-import { fetchLatestIngestionPreview, previewIngestionResult, previewMockCall, type IngestionResult, type MockCallPreview } from "@/modules/live-dispatch/lib/api";
+import { fetchIngestionPreviews, previewIngestionResult, previewMockCall, type IngestionResult, type MockCallPreview } from "@/modules/live-dispatch/lib/api";
 import DispatchSidebar from "@/components/emergency/DispatchSidebar";
 import KPIStatCard from "@/components/emergency/KPIStatCard";
 import type { DispatchAction, DispatchLocation, DispatchRecommendation, DispatchSnapshot, RoutingStatus } from "@/modules/live-dispatch/types";
 import type { AmbulanceUnit, Hospital, Incident, ResponseRoute } from "@/types/emergency";
 
 type Props = {
+  initialCallId?: string;
   routes: ResponseRoute[];
   locations: DispatchLocation[];
   routingStatus: RoutingStatus;
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export default function LiveDispatchPage({
+  initialCallId,
   routes,
   routingStatus,
   routingError,
@@ -57,23 +59,32 @@ export default function LiveDispatchPage({
     geolocation: { locality: "Bandar Sunway", address: "Bandar Sunway, Selangor" },
     incident: { title: "Road traffic accident", summary: "Driver reports a leg injury", category: "traffic_collision", priority: "P2" },
   }, null, 2));
-  const [mockPreview, setMockPreview] = useState<MockCallPreview | null>(null);
+  const [publishedPreviews, setPublishedPreviews] = useState<MockCallPreview[]>([]);
+  const [selectedPublishedCallId, setSelectedPublishedCallId] = useState<string | null>(initialCallId ?? null);
+  const [manualPreview, setManualPreview] = useState<MockCallPreview | null>(null);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [mockBusy, setMockBusy] = useState(false);
   const [mockError, setMockError] = useState<string | null>(null);
-  const seenRevision = useRef<number | null>(null);
+  const selectionTouched = useRef(Boolean(initialCallId));
+  const mockPreview = manualPreview ?? publishedPreviews.find((item) => item.call_id === selectedPublishedCallId) ?? null;
 
   useEffect(() => {
     let active = true;
+    let loading = false;
     const refresh = async () => {
+      if (loading) return;
+      loading = true;
       try {
-        const latest = await fetchLatestIngestionPreview();
-        if (active && latest?.revision != null && latest.revision !== seenRevision.current) {
-          seenRevision.current = latest.revision;
-          setMockPreview(latest);
-          setMockError(null);
+        const previews = await fetchIngestionPreviews();
+        if (active) {
+          setPublishedPreviews(previews);
+          if (!selectionTouched.current) setSelectedPublishedCallId(previews[0]?.call_id ?? null);
+          setFeedError(null);
         }
-      } catch {
-        // The manual mock form remains usable while the ingestion API is offline.
+      } catch (error) {
+        if (active) setFeedError(error instanceof Error ? error.message : "Could not load intake calls");
+      } finally {
+        loading = false;
       }
     };
     void refresh();
@@ -84,11 +95,17 @@ export default function LiveDispatchPage({
   const runPreview = async (request: () => Promise<MockCallPreview>) => {
     setMockBusy(true);
     setMockError(null);
-    setMockPreview(null);
     try {
       const result = await request();
-      if (result.revision != null) seenRevision.current = result.revision;
-      setMockPreview(result);
+      selectionTouched.current = true;
+      if (result.revision != null && result.call_id && result.classification === "legit_distress") {
+        setPublishedPreviews((current) => [result, ...current.filter((item) => item.call_id !== result.call_id)]);
+        setSelectedPublishedCallId(result.call_id);
+        setManualPreview(null);
+      } else {
+        setSelectedPublishedCallId(null);
+        setManualPreview(result);
+      }
     } catch (error) {
       setMockError(error instanceof Error ? error.message : "Could not preview this call");
     } finally {
@@ -98,6 +115,16 @@ export default function LiveDispatchPage({
 
   const runMockPreview = () => runPreview(() => previewMockCall(mockLocation, mockClassification));
   const runIngestionPreview = () => runPreview(() => previewIngestionResult(JSON.parse(ingestionJson) as IngestionResult));
+  const selectPublishedCall = (callId: string) => {
+    selectionTouched.current = true;
+    setManualPreview(null);
+    setSelectedPublishedCallId(callId);
+  };
+  const clearPreview = () => {
+    selectionTouched.current = true;
+    setManualPreview(null);
+    setSelectedPublishedCallId(null);
+  };
 
   const recommendationsByIncident = new Map(
     (dispatchSnapshot?.recommendations ?? [])
@@ -136,7 +163,7 @@ export default function LiveDispatchPage({
     availableUnits: dispatchUnits.filter((unit) => unit.baseHospitalId === facility.id && unit.status === "Available").length,
     nearbyIncidents: dispatchIncidents.filter((incident) => incident.receivingHospitalId === facility.id).length,
   }));
-  const mockRouteId = "MOCK-ROUTE-001";
+  const mockRouteId = `PREVIEW-ROUTE-${mockPreview?.call_id ?? "MANUAL"}`;
   const mockIncidentId = mockPreview?.call_id ?? "MOCK-CALL-001";
   const previewSelected = mockPreview?.routable ? mockPreview.selected : undefined;
   const mapRoutes: ResponseRoute[] = previewSelected ? [{
@@ -144,14 +171,23 @@ export default function LiveDispatchPage({
     hospitalId: "", color: "#e11d48", coordinates: previewSelected.coordinates,
     etaMinutes: previewSelected.eta_minutes, distanceKm: previewSelected.distance_km, leg: "to_scene",
   }, ...routes] : routes;
-  const mapIncidents: Incident[] = previewSelected && mockPreview?.incident_coordinate ? [{
-    id: mockIncidentId, type: mockPreview.incident?.title ?? "Mock distress call", severity: mockPreview.incident?.priority === "P1" ? "Critical" : mockPreview.incident?.priority === "P3" ? "Medium" : mockPreview.incident?.priority === "P4" ? "Low" : "High", status: "New",
-    area: mockPreview.location_text ?? "Mock location", zone: "Mock preview",
-    coordinate: mockPreview.road_access_coordinate ?? mockPreview.incident_coordinate, minutesOpen: 0,
-    assignedUnitId: previewSelected.unit_id, etaMinutes: previewSelected.eta_minutes,
-    etaAvailable: true, allocationStatus: "recommended", targetStatus: "On target",
-    receivingHospitalId: "",
-  }, ...dispatchIncidents] : dispatchIncidents;
+  const previewIncidents: Incident[] = [...publishedPreviews, ...(manualPreview ? [manualPreview] : [])]
+    .filter((preview) => preview.routable && preview.selected && preview.incident_coordinate)
+    .map((preview) => ({
+      id: preview.call_id ?? "MOCK-CALL-001", type: preview.incident?.title ?? "Distress call",
+      severity: preview.incident?.priority === "P1" ? "Critical" : preview.incident?.priority === "P3" ? "Medium" : preview.incident?.priority === "P4" ? "Low" : "High",
+      status: "New", area: preview.matched_place ?? preview.location_text ?? "Call location",
+      zone: preview.revision != null ? "Intake handoff" : "Manual preview",
+      coordinate: preview.road_access_coordinate ?? preview.incident_coordinate!, minutesOpen: 0,
+      assignedUnitId: preview.selected!.unit_id, etaMinutes: preview.selected!.eta_minutes,
+      etaAvailable: true, allocationStatus: "recommended", targetStatus: "On target",
+      receivingHospitalId: "",
+    }));
+  const mapIncidents: Incident[] = [...previewIncidents, ...dispatchIncidents];
+  const selectIncident = (id: string) => {
+    if (publishedPreviews.some((preview) => preview.call_id === id)) selectPublishedCall(id);
+    else onSelectIncident(id);
+  };
   const mapUnits: AmbulanceUnit[] = previewSelected ? [{
     id: previewSelected.unit_id, crew: "Simulated crew", status: "Available",
     baseHospitalId: "", coordinate: previewSelected.origin_coordinate,
@@ -193,22 +229,35 @@ export default function LiveDispatchPage({
         incidentsData={mapIncidents}
         unitsData={mapUnits}
         hospitalsData={dispatchFacilities}
-        selectedIncidentId={selectedIncidentId}
+        selectedIncidentId={previewSelected ? mockIncidentId : selectedIncidentId}
         selectedUnitId={selectedUnitId}
-        onSelectIncident={onSelectIncident}
+        onSelectIncident={selectIncident}
         onSelectUnit={onSelectUnit}
         onSelectHospital={() => undefined}
       />
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="border-b border-slate-200 bg-white px-4 py-2.5">
+          <div className="mb-3">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-800">Live Intake distress calls ({publishedPreviews.length})</span>
+              {publishedPreviews.length > 1 ? <button type="button" onClick={() => { selectionTouched.current = false; setManualPreview(null); setSelectedPublishedCallId(publishedPreviews[0].call_id ?? null); }} className="text-xs font-semibold text-blue-700">Follow latest</button> : null}
+            </div>
+            {feedError ? <p role="alert" className="mb-1 text-xs text-red-700">Could not refresh intake calls: {feedError}</p> : null}
+            {publishedPreviews.length ? (
+              <select aria-label="Choose distress call route" value={manualPreview ? "" : selectedPublishedCallId ?? ""} onChange={(event) => selectPublishedCall(event.target.value)} className="w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900">
+                <option value="" disabled>Choose a processed distress call</option>
+                {publishedPreviews.map((preview) => <option key={preview.call_id} value={preview.call_id}>{preview.call_id} · {preview.incident?.priority ?? "Priority pending"} · {preview.matched_place ?? preview.location_text ?? "Location unresolved"} · {preview.selected ? `${preview.selected.unit_id} · ${preview.selected.eta_minutes} min` : "Route pending"}</option>)}
+              </select>
+            ) : <p className="text-xs text-slate-500">Process an emergency audio call in Live Intake to see its route here.</p>}
+          </div>
           <form onSubmit={(event) => { event.preventDefault(); void runMockPreview(); }} className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-bold text-slate-800">Mock call route preview</span>
+            <span className="mr-1 text-xs font-bold text-slate-800">Call route preview</span>
             <input aria-label="Caller location" value={mockLocation} onChange={(event) => setMockLocation(event.target.value)} placeholder="Bandar Sunway, Klang, Puchong..." className="min-w-[220px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900" />
             <select aria-label="Call classification" value={mockClassification} onChange={(event) => setMockClassification(event.target.value as MockCallPreview["classification"])} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900">
               <option value="legit_distress">Legit distress</option><option value="scam">Scam</option><option value="misc">Misc</option>
             </select>
             <button type="submit" disabled={mockBusy || !mockLocation.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{mockBusy ? "Routing..." : "Preview route"}</button>
-            {mockPreview ? <button type="button" onClick={() => setMockPreview(null)} className="px-2 text-xs text-slate-600">Clear</button> : null}
+            {mockPreview ? <button type="button" onClick={clearPreview} className="px-2 text-xs text-slate-600">Clear</button> : null}
           </form>
           <details className="mt-2 text-xs text-slate-700">
             <summary className="cursor-pointer font-semibold">Paste ingestion JSON</summary>
@@ -218,7 +267,7 @@ export default function LiveDispatchPage({
             </div>
           </details>
           {mockError ? <p role="alert" className="mt-1 text-xs text-red-700">{mockError}</p> : null}
-          {mockPreview ? <p className="mt-1 text-xs text-slate-600">{previewSelected ? `${mockPreview.matched_place ?? mockPreview.location_text} · ${previewSelected.unit_id} · ${previewSelected.eta_minutes} min · ${previewSelected.distance_km} km · preview only` : mockPreview.reason}</p> : null}
+          {mockPreview ? <p className="mt-1 text-xs text-slate-600">{previewSelected ? `${mockPreview.call_id ?? "Call"}: ${mockPreview.matched_place ?? mockPreview.location_text} · ${previewSelected.unit_id} · ${previewSelected.eta_minutes} min · ${previewSelected.distance_km} km · preview only` : mockPreview.reason}</p> : null}
         </div>
         <div className="border-b border-slate-200/80 bg-white/90 px-4 py-2.5 backdrop-blur">
           <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-3 2xl:grid-cols-6">
@@ -240,7 +289,7 @@ export default function LiveDispatchPage({
             selectedIncidentId={previewSelected ? mockIncidentId : selectedIncidentId}
             selectedUnitId={previewSelected ? previewSelected.unit_id : selectedUnitId}
             selectedRouteId={previewSelected ? mockRouteId : selectedRouteId}
-            onSelectIncident={onSelectIncident}
+            onSelectIncident={selectIncident}
             onSelectUnit={onSelectUnit}
             onSelectRoute={onSelectRoute}
           />

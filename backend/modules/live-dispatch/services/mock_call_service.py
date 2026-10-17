@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import closing
+from copy import deepcopy
 import json
 import re
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Lock
 
 from .routing_service import RoutingUnavailable, routing_service
 
@@ -14,9 +16,8 @@ from .routing_service import RoutingUnavailable, routing_service
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 PLACE_INDEX = DATA_DIR / "osm_places.json"
 SEED = DATA_DIR / "seed_locations.json"
-_latest_lock = Lock()
-_latest_preview: dict | None = None
-_revision = 0
+PREVIEW_DB = DATA_DIR / "ingestion_previews.sqlite3"
+MAX_STORED_PREVIEWS = 50
 
 
 class PlaceNotFound(ValueError):
@@ -24,17 +25,58 @@ class PlaceNotFound(ValueError):
 
 
 def publish_ingestion_preview(preview: dict) -> dict:
-    """Expose the latest teammate handoff to the demo UI in this API process."""
-    global _latest_preview, _revision
-    with _latest_lock:
-        _revision += 1
-        _latest_preview = {**preview, "revision": _revision, "received_at": datetime.now(timezone.utc).isoformat()}
-        return _latest_preview.copy()
+    """Persist route geometry so API reloads do not erase processed calls."""
+    with closing(_preview_connection()) as connection, connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute("SELECT revision FROM preview_state WHERE id = 1").fetchone()
+        revision = (row[0] if row else 0) + 1
+        published = {**deepcopy(preview), "revision": revision,
+                     "received_at": datetime.now(timezone.utc).isoformat()}
+        serialized = json.dumps(published)
+        connection.execute(
+            "INSERT INTO preview_state (id, revision, latest_json) VALUES (1, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET revision = excluded.revision, latest_json = excluded.latest_json",
+            (revision, serialized),
+        )
+        call_id = published.get("call_id")
+        if call_id and published.get("classification") == "legit_distress":
+            connection.execute(
+                "INSERT INTO distress_previews (call_id, revision, preview_json) VALUES (?, ?, ?) "
+                "ON CONFLICT(call_id) DO UPDATE SET revision = excluded.revision, preview_json = excluded.preview_json",
+                (call_id, revision, serialized),
+            )
+            connection.execute(
+                "DELETE FROM distress_previews WHERE call_id NOT IN "
+                "(SELECT call_id FROM distress_previews ORDER BY revision DESC LIMIT ?)",
+                (MAX_STORED_PREVIEWS,),
+            )
+        return published
 
 
 def latest_ingestion_preview() -> dict | None:
-    with _latest_lock:
-        return _latest_preview.copy() if _latest_preview else None
+    with closing(_preview_connection()) as connection:
+        row = connection.execute("SELECT latest_json FROM preview_state WHERE id = 1").fetchone()
+        return json.loads(row[0]) if row else None
+
+
+def list_ingestion_previews() -> list[dict]:
+    """Newest distress call first; each result includes its own route geometry."""
+    with closing(_preview_connection()) as connection:
+        rows = connection.execute(
+            "SELECT preview_json FROM distress_previews ORDER BY revision DESC LIMIT ?",
+            (MAX_STORED_PREVIEWS,),
+        ).fetchall()
+        return [json.loads(row[0]) for row in rows]
+
+
+def _preview_connection() -> sqlite3.Connection:
+    PREVIEW_DB.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(PREVIEW_DB, timeout=10)
+    connection.execute("CREATE TABLE IF NOT EXISTS preview_state "
+                       "(id INTEGER PRIMARY KEY, revision INTEGER NOT NULL, latest_json TEXT NOT NULL)")
+    connection.execute("CREATE TABLE IF NOT EXISTS distress_previews "
+                       "(call_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, preview_json TEXT NOT NULL)")
+    return connection
 
 
 def normalize(value: str) -> str:
@@ -61,6 +103,31 @@ def resolve_place(location_text: str) -> dict:
         raise PlaceNotFound(f"No OSM locality matched '{location_text}'. Supply an exact place name or coordinates.")
     # Prefer the longest locality mentioned in a full address or transcript.
     return max(matches, key=lambda item: item[:2])[2]
+
+
+async def preview_triage_summary(summary: dict, router=routing_service) -> dict:
+    """Adapt signal-fusion triage output without trusting a missing location."""
+    classification = {"emergency": "legit_distress", "spam": "scam", "silent": "misc"}[summary["call_class"]]
+    location = summary.get("location") or {}
+    location_text = (location.get("text") or "").strip()
+    latitude, longitude = location.get("lat"), location.get("lng")
+    if classification != "legit_distress":
+        return {"call_id": summary["call_id"], "classification": classification, "routable": False,
+                "reason": "Triage did not classify this call as an emergency."}
+    if not location_text and (latitude is None or longitude is None):
+        return {"call_id": summary["call_id"], "classification": classification, "routable": False,
+                "reason": "Incident location is unresolved; ask the caller for a location before route planning."}
+    try:
+        return await preview_call({
+            "call_id": summary["call_id"], "classification": classification,
+            "location_text": location_text or "Caller-provided coordinates",
+            "latitude": latitude, "longitude": longitude,
+            "incident": {"title": summary.get("complaint") or "Emergency call",
+                         "summary": summary.get("complaint"), "priority": summary.get("priority")},
+        }, router)
+    except (PlaceNotFound, RoutingUnavailable) as exc:
+        return {"call_id": summary["call_id"], "classification": classification, "routable": False,
+                "reason": str(exc)}
 
 
 async def preview_call(payload: dict, router=routing_service) -> dict:

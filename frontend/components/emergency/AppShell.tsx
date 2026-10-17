@@ -31,6 +31,7 @@ export default function AppShell() {
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | undefined>();
   const [selectedUnitId, setSelectedUnitId] = useState<string | undefined>();
   const [selectedRouteId, setSelectedRouteId] = useState<string | undefined>();
+  const [dispatchCallId, setDispatchCallId] = useState<string | undefined>();
 
   useEffect(() => {
     if (activePage === "Command Center" && !selectedIncidentId && commandCenter.snapshot?.incidents[0]) {
@@ -111,9 +112,11 @@ export default function AppShell() {
             onDispatchAction={actOnDispatch}
           />
         ) : null}
-        {activePage === "Live Dispatch" ? <LiveDispatchPage {...sharedSelection} /> : null}
+        {activePage === "Live Dispatch" ? <LiveDispatchPage {...sharedSelection} initialCallId={dispatchCallId} /> : null}
         {activePage === "Ambulance Scheduling" ? <AmbulanceSchedulingPage dispatchSnapshot={snapshot} onRefresh={reload} /> : null}
-        {activePage === "Live Intake" ? <LiveIntakePage onOpenSignalFusion={() => setActivePage("Live Signals")} /> : null}
+        <div className={activePage === "Live Intake" ? "h-full" : "hidden"}>
+          <LiveIntakePage onOpenDispatch={(callId) => { setDispatchCallId(callId); setActivePage("Live Dispatch"); }} />
+        </div>
         {activePage === "Live Signals" ? <SignalFusionPage workspace="intake" /> : null}
         {activePage === "Triage Queue" ? <SignalFusionPage workspace="queue" /> : null}
         {activePage === "Dispatch Copilot" ? <DispatchAssistantPage selectedIncidentId={selectedIncidentId} onNavigate={setActivePage} /> : null}

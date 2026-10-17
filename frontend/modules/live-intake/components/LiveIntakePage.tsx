@@ -134,11 +134,14 @@ function CallGraph({ result, audioUrl }: { result: TriageResult; audioUrl?: stri
         <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">Summary JSON / handoff to routing</div>
         <pre className="mt-2 overflow-x-auto text-[11px] leading-5 text-emerald-300">{JSON.stringify(summary, null, 2)}</pre>
       </div>
+      {result.dispatch_preview?.routable ? <p className="mt-2 text-xs font-semibold text-emerald-700">Route preview sent to Live Dispatch for {result.dispatch_preview.selected?.unit_id}. No ambulance has been dispatched.</p> : null}
+      {result.dispatch_preview && !result.dispatch_preview.routable ? <p className="mt-2 text-xs font-semibold text-amber-700">{result.dispatch_preview.reason}</p> : null}
+      {result.ingestion_error ? <p className="mt-2 text-xs font-semibold text-amber-700">Fusion unavailable: {result.ingestion_error}</p> : null}
     </div>
   );
 }
 
-export default function LiveIntakePage({ onOpenSignalFusion }: { onOpenSignalFusion: () => void }) {
+export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (callId: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [samples, setSamples] = useState<VoiceSample[]>([]);
   const [calls, setCalls] = useState<Record<string, CallState>>({});
@@ -236,11 +239,8 @@ export default function LiveIntakePage({ onOpenSignalFusion }: { onOpenSignalFus
           {current?.result ? (
             <>
               <CallGraph result={current.result} audioUrl={current.audioUrl} />
-              {current.result.ingestion ? (
-                <button type="button" onClick={onOpenSignalFusion} className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold text-blue-700">
-                  Forwarded to fusion as {current.result.ingestion.signal.id}. Open Live Signals <ArrowRight size={11} />
-                </button>
-              ) : null}
+              {current.result.ingestion ? <p className="mt-3 text-[10px] font-semibold text-slate-600">Recorded in fusion as {current.result.ingestion.signal.id}.</p> : null}
+              {current.result.dispatch_preview?.routable ? <button type="button" onClick={() => onOpenDispatch(current.result!.summary.call_id)} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-700">View route on Live Dispatch <ArrowRight size={13} /></button> : null}
             </>
           ) : (
             <div className="grid h-full place-items-center text-center text-xs text-slate-500">

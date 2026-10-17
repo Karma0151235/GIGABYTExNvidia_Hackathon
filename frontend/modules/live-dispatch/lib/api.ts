@@ -1,7 +1,7 @@
 import type { ResponseRoute } from "@/types/emergency";
 import type { DispatchSnapshot } from "@/modules/live-dispatch/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export type MockCallPreview = {
   revision?: number;
@@ -55,6 +55,12 @@ export async function fetchLatestIngestionPreview(): Promise<MockCallPreview | n
   if (response.status === 204) return null;
   if (!response.ok) throw new Error(`Latest ingestion preview returned ${response.status}`);
   return response.json() as Promise<MockCallPreview>;
+}
+
+export async function fetchIngestionPreviews(): Promise<MockCallPreview[]> {
+  const response = await fetch(`${API_BASE}/api/live-dispatch/ingestion/previews`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Call previews returned ${response.status}`);
+  return response.json() as Promise<MockCallPreview[]>;
 }
 
 export async function previewMockCall(locationText: string, classification: MockCallPreview["classification"]): Promise<MockCallPreview> {

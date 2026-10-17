@@ -135,6 +135,8 @@ export type TriageResult = {
   summary: TriageSummary;
   path: { question: string; answer: string }[];
   ingestion?: IngestionResult | null;
+  ingestion_error?: string | null;
+  dispatch_preview?: import("@/modules/live-dispatch/lib/api").MockCallPreview;
 };
 
 export type VoiceSample = { name: string; url: string };

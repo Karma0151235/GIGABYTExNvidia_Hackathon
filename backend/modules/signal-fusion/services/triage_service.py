@@ -17,6 +17,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Literal
 
@@ -248,9 +249,16 @@ def _heuristic_triage(transcript: str) -> TriageExtraction:
         conscious = True
     else:
         conscious = None
+    location_name = next((name for name in GAZETTEER if name in lowered), None)
+    if location_name is None:
+        places = import_module("backend.modules.live-dispatch.services.mock_call_service")
+        try:
+            location_name = places.resolve_place(transcript)["name"]
+        except places.PlaceNotFound:
+            location_name = "unknown"
     return TriageExtraction(
         call_class="spam" if spam else "emergency",
-        location_name=next((name for name in GAZETTEER if name in lowered), "unknown"),
+        location_name=location_name,
         patient_count=1,
         conscious=conscious,
         breathing=False if any(k in lowered for k in NOT_BREATHING_KEYWORDS) else None,

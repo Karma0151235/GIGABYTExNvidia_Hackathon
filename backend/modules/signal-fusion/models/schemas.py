@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 SignalSource = Literal["WEATHER", "TRAFFIC", "CALL", "FIELD", "SMS", "APP", "RADIO", "CCTV"]
@@ -114,6 +114,12 @@ class TriageRequest(BaseModel):
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
 
+    @model_validator(mode="after")
+    def validate_coordinates(self):
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude and longitude must be supplied together")
+        return self
+
 
 class AudioEvidence(BaseModel):
     id: str
@@ -156,6 +162,8 @@ class TriageResult(BaseModel):
     summary: TriageSummary
     path: list[TreeStep]
     ingestion: IngestionResult | None = None
+    ingestion_error: str | None = None
+    dispatch_preview: dict[str, Any] | None = None
 
 
 class IncidentHandoff(BaseModel):

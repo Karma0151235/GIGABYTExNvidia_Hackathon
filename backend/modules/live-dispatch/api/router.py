@@ -5,6 +5,7 @@ from importlib import import_module
 from fastapi import APIRouter, Header, HTTPException, Query, Response
 
 schemas = import_module("backend.modules.live-dispatch.models.schemas")
+triage_schemas = import_module("backend.modules.signal-fusion.models.schemas")
 service_module = import_module("backend.modules.live-dispatch.services.routing_service")
 routing_service = service_module.routing_service
 RoutingUnavailable = service_module.RoutingUnavailable
@@ -61,9 +62,26 @@ async def ingestion_preview(payload: schemas.IngestionResultRequest):
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
+@router.post("/triage/preview")
+async def triage_preview(payload: triage_schemas.TriageSummary):
+    """Turn the intake module's actual summary JSON into a dispatch map preview."""
+    try:
+        preview = await mock_call_module.preview_triage_summary(model_payload(payload))
+        return mock_call_module.publish_ingestion_preview(preview)
+    except mock_call_module.PlaceNotFound as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RoutingUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @router.get("/ingestion/latest")
 async def latest_ingestion_preview():
     return mock_call_module.latest_ingestion_preview() or Response(status_code=204)
+
+
+@router.get("/ingestion/previews")
+async def ingestion_previews():
+    return mock_call_module.list_ingestion_previews()
 
 
 @router.get("/snapshot", response_model=schemas.DispatchSnapshot)

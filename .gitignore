@@ -49,3 +49,4 @@ temp/
 *.tmp
 backend/data/call-audio/
 backend/modules/live-dispatch/data/osm_places.json
+backend/modules/live-dispatch/data/ingestion_previews.sqlite3*

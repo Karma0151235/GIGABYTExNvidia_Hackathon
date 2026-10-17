@@ -13,6 +13,11 @@ schemas = importlib.import_module("backend.modules.live-dispatch.models.schemas"
 api = importlib.import_module("backend.modules.live-dispatch.api.router")
 
 
+@pytest.fixture(autouse=True)
+def isolated_preview_store(monkeypatch, tmp_path):
+    monkeypatch.setattr(module, "PREVIEW_DB", tmp_path / "ingestion_previews.sqlite3")
+
+
 class FakeRouter:
     async def route(self, coordinates):
         origin, destination = coordinates
