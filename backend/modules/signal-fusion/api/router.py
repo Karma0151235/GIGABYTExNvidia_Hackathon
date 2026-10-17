@@ -180,7 +180,8 @@ async def triage_call(payload: schemas.TriageRequest):
 
     decision, extraction, provider = await run_in_threadpool(triage_service.run_tree, transcript)
     summary = {**triage_service.build_summary(transcript, decision, extraction), "audio_url": audio_url}
-    result = {"summary": summary, "path": [step.model_dump() for step in decision.path]}
+    # triage_provider tells the UI whether the DGX LLM answered or the keyword fallback ran.
+    result = {"summary": summary, "path": [step.model_dump() for step in decision.path], "triage_provider": provider}
     if decision.call_class != "emergency":
         # Silent and spam calls stop here; nothing enters fusion.
         return await attach_dispatch_preview(result)

@@ -9,6 +9,7 @@ import {
   triageCall,
 } from "@/modules/signal-fusion/lib/api";
 import type { TriageCapabilities, TriageResult, VoiceSample } from "@/modules/signal-fusion/types";
+import { endCall, startCall } from "@/modules/workflow/lib/modelActivity";
 
 const MAX_AUDIO_BYTES = 6_000_000;
 const CONCURRENCY = 3; // Keep the DGX request pool bounded.
@@ -165,12 +166,23 @@ export default function LiveIntakePage({ onOpenDispatch, onTriaged, onSelectCall
 
   const run = async (name: string, payload: Parameters<typeof triageCall>[0], audioUrl?: string) => {
     patch(name, { status: "running", audioUrl });
+    // One backend request: Omni transcribes, then Lightning extracts triage (or the keyword fallback runs).
+    const short = name.replace(/\.mp3$/, "");
+    const stt = payload.transcript == null ? startCall("omni", `Speech-to-text: ${short}`) : null;
+    const llm = startCall("lightning", `Triage: ${short}`);
     try {
       const result = await triageCall({ ...payload, caller: "999 live line" });
+      if (stt) endCall(stt, "ok");
+      if (result.triage_provider === "llm") endCall(llm, "ok");
+      else if (result.triage_provider === "heuristic") endCall(llm, "error", "No usable LLM answer; keyword fallback used");
+      else endCall(llm, "skipped", "Silent call, no triage needed");
       patch(name, { status: "done", result, audioUrl });
       onTriaged?.(name, result);
     } catch (caught) {
-      patch(name, { status: "error", error: caught instanceof Error ? caught.message : "Triage failed" });
+      const message = caught instanceof Error ? caught.message : "Triage failed";
+      if (stt) endCall(stt, "error", message);
+      endCall(llm, "skipped", "Not reached: request failed before triage");
+      patch(name, { status: "error", error: message });
     }
   };
 

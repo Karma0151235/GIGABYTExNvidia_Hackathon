@@ -135,6 +135,7 @@ export type TriageResult = {
   summary: TriageSummary;
   path: { question: string; answer: string }[];
   ingestion?: IngestionResult | null;
+  triage_provider?: "llm" | "heuristic" | null;
   ingestion_error?: string | null;
   dispatch_preview?: import("@/modules/live-dispatch/lib/api").MockCallPreview;
 };

@@ -14,6 +14,7 @@ import { seedFor } from "@/modules/workflow/lib/seed";
 import PatientPanel, { PRIORITY_TONE } from "@/modules/workflow/components/PatientPanel";
 import ResponderTab from "@/modules/workflow/components/ResponderTab";
 import HospitalTab from "@/modules/workflow/components/HospitalTab";
+import ModelStatus from "@/modules/workflow/components/ModelStatus";
 
 const TABS = ["Call Records", "Route", "First Responder", "Hospital"] as const;
 const now = () => new Date().toISOString();
@@ -146,7 +147,7 @@ export default function WorkflowPage() {
           </select>
           {selected ? <span className={`rounded border px-1.5 py-0.5 text-[10px] font-black ${PRIORITY_TONE[selected.priority] ?? PRIORITY_TONE.P3}`}>{selected.priority}</span> : null}
         </div>
-        <div className="ml-auto flex items-center gap-4"><span className="hidden sm:inline">MERS 999 / KL Command</span><span className="anwar-engine"><span />{routingStatus === "online" ? "Engine live" : routingStatus === "loading" ? "Connecting" : "Routing offline"}</span><ShieldCheck size={16} /></div>
+        <div className="ml-auto flex items-center gap-4"><ModelStatus /><span className="hidden xl:inline">MERS 999 / KL Command</span><span className="anwar-engine"><span />{routingStatus === "online" ? "Engine live" : routingStatus === "loading" ? "Connecting" : "Routing offline"}</span><ShieldCheck size={16} /></div>
       </header>
 
       <nav role="tablist" className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-4">

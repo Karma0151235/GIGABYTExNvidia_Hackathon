@@ -9,9 +9,8 @@ const PROMPTS = {
 } as const;
 
 export async function POST(request: NextRequest) {
-  const base = process.env.AGENT_LLM_BASE_URL;
-  const model = process.env.AGENT_LLM_MODEL;
-  if (!base || !model) return NextResponse.json({ error: "Agent LLM not configured" }, { status: 503 });
+  const base = process.env.AGENT_LLM_BASE_URL ?? "http://192.168.0.108:9006/v1";
+  const model = process.env.AGENT_LLM_MODEL ?? "nano";
 
   let body: { kind?: keyof typeof PROMPTS; case?: unknown };
   try {
@@ -44,6 +43,8 @@ export async function POST(request: NextRequest) {
     if (!text) return NextResponse.json({ error: "Model returned no content" }, { status: 502 });
     return NextResponse.json({ text, model });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "LLM request failed" }, { status: 502 });
+    // fetch() hides the network reason (ECONNREFUSED, EHOSTUNREACH...) in error.cause.
+    const reason = error instanceof Error && error.name === "TimeoutError" ? "no answer within 30 s" : error instanceof Error ? (error.cause as Error | undefined)?.message ?? error.message : "request failed";
+    return NextResponse.json({ error: `${model} at ${base}: ${reason}` }, { status: 502 });
   }
 }

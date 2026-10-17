@@ -164,6 +164,7 @@ class TriageResult(BaseModel):
     ingestion: IngestionResult | None = None
     ingestion_error: str | None = None
     dispatch_preview: dict[str, Any] | None = None
+    triage_provider: Literal["llm", "heuristic"] | None = None
 
 
 class IncidentHandoff(BaseModel):

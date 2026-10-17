@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { ImagePlus, Stethoscope } from "lucide-react";
 import { photoTriage, reached, type Action, type Case } from "@/modules/workflow/lib/caseReducer";
 import { draftClinicalReport } from "@/modules/workflow/lib/clinicalReport";
+import { endCall, startCall } from "@/modules/workflow/lib/modelActivity";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
@@ -37,6 +38,7 @@ export default function ResponderTab({ item, dispatch }: { item?: Case; dispatch
     if (file.size > MAX_PHOTO_BYTES) return setError("Photo exceeds the 5 MB limit.");
     const summary = item.triage?.summary;
     setBusy(true);
+    const callId = startCall("omni", "Photo triage (VLM)");
     try {
       const dataUrl = await readDataUrl(file);
       dispatch({ type: "photoAdded", callId: item.callId, dataUrl });
@@ -50,7 +52,9 @@ export default function ResponderTab({ item, dispatch }: { item?: Case; dispatch
         images: [{ image_id: `IMG-${item.photos.length + 1}`, kind: "injury", media_type: file.type, data_base64: dataUrl.split(",", 2)[1] }],
       });
       dispatch({ type: "vlmDraftReady", callId: item.callId, draft, at: new Date().toISOString() });
+      endCall(callId, "ok");
     } catch (caught) {
+      endCall(callId, "error", caught instanceof Error ? caught.message : "Photo analysis failed");
       setError(caught instanceof Error ? caught.message : "Photo analysis failed");
     } finally {
       setBusy(false);
