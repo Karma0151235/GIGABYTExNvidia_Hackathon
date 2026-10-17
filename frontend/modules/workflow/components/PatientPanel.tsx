@@ -32,7 +32,7 @@ function Section({ title, icon, children, aside }: { title: string; icon: React.
   );
 }
 
-export default function PatientPanel({ item, summaryBusy }: { item?: Case; summaryBusy: boolean }) {
+export default function PatientPanel({ item, summaryBusy, showAgentSummary = true }: { item?: Case; summaryBusy: boolean; showAgentSummary?: boolean }) {
   const [showIc, setShowIc] = useState(false);
   const timelineEnd = useRef<HTMLLIElement>(null);
   useEffect(() => { timelineEnd.current?.scrollIntoView({ block: "nearest" }); }, [item?.timeline.length]);
@@ -77,9 +77,9 @@ export default function PatientPanel({ item, summaryBusy }: { item?: Case; summa
         </Section>
       ) : null}
 
-      <Section title="Agent summary" icon={<Bot size={12} />} aside={summaryBusy ? "updating..." : item.agentSummary ? `${item.agentSummary.offline ? "offline summary" : "AI draft"} / ${clock(item.agentSummary.at)}` : null}>
+      {showAgentSummary ? <Section title="Agent summary" icon={<Bot size={12} />} aside={summaryBusy ? "updating..." : item.agentSummary ? `${item.agentSummary.offline ? "offline summary" : "AI draft"} / ${clock(item.agentSummary.at)}` : null}>
         <p data-testid="agent-summary" className={`text-xs leading-5 ${summaryBusy ? "animate-pulse text-slate-500" : "text-slate-700"}`}>{item.agentSummary?.text ?? "Generating summary..."}</p>
-      </Section>
+      </Section> : null}
 
       <Section title="Timeline" icon={<span className="h-2 w-2 rounded-full bg-blue-500" />}>
         <ol data-testid="timeline" className="space-y-2">

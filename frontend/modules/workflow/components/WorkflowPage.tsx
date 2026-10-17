@@ -197,13 +197,13 @@ export default function WorkflowPage() {
             />
             </div>
             </div>,
-            <ResponderTab key="responder" item={selected} dispatch={dispatch} />,
+            <ResponderTab key="responder" item={selected} active={state.tab === 2} dispatch={dispatch} />,
             <HospitalTab key="hospital" item={selected} snapshot={snapshot} dispatch={dispatch} />,
           ].map((pane, index) => (
             <div key={index} role="tabpanel" aria-hidden={state.tab !== index} className={`absolute inset-0 ${state.tab === index ? "" : "invisible pointer-events-none"}`}>{pane}</div>
           ))}
         </div>
-        <PatientPanel item={selected} summaryBusy={summaryBusy} />
+        <PatientPanel item={selected} summaryBusy={summaryBusy} showAgentSummary={state.tab !== 2} />
       </div>
     </main>
   );

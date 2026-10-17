@@ -3,8 +3,11 @@ import { signalFusionApiUrl } from "@/modules/signal-fusion/lib/api";
 // Mirrors backend/modules/field-clinical-report/models/schemas.py (fields the UI reads).
 export type DraftReport = {
   report_id: string;
-  // One fixed-layout "ER TRIAGE NOTE" per image; see SYSTEM_PROMPT in report_service.py.
+  // Fixed-layout VLM notes; see SYSTEM_PROMPT in report_service.py.
   image_notes: { image_id: string; kind: string; note: string }[];
+  video_note: string | null;
+  video_sha256: string | null;
+  video_method: "native" | "frames" | null;
   model: string;
   limitations: string[];
 };
@@ -19,7 +22,9 @@ export type DraftRequest = {
   responder_notes?: string | null;
   receiving_facility_name?: string | null;
   hospital_eta_minutes?: number | null;
-  images: { image_id: string; kind: "injury"; media_type: string; data_base64: string }[];
+  images?: { image_id: string; kind: "injury"; media_type: string; data_base64: string }[];
+  video?: { video_id: string; media_type: "video/mp4"; data_base64: string };
+  video_frames?: { image_id: string; kind: "other"; media_type: "image/jpeg"; data_base64: string }[];
 };
 
 export async function draftClinicalReport(payload: DraftRequest): Promise<DraftReport> {
