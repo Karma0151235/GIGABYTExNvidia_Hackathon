@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aegis-911 | Emergency Response Coordination",
+  title: "Aegis-999 | Emergency Response Coordination",
   description:
     "A healthcare emergency dispatch control tower for ambulance response coordination in Kuala Lumpur.",
 };
