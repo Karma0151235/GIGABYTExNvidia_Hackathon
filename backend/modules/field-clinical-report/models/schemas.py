@@ -51,27 +51,17 @@ class ReportRequest(BaseModel):
         return self
 
 
-class VisualFinding(BaseModel):
-    image_ids: list[str] = Field(min_length=1)
-    body_region: str | None = None
-    observation: str = Field(min_length=3)
-    certainty: Literal["visible", "uncertain"]
-
-
-class VisionAnalysis(BaseModel):
-    injury_findings: list[VisualFinding]
-    scene_observations: list[str]
-    discrepancies: list[str]
-    uncertainties: list[str]
-    handoff_summary: str = Field(min_length=10)
-    hospital_preparation_notes: list[str]
-
-
 class ImageEvidence(BaseModel):
     image_id: str
     kind: str
     media_type: str
     sha256: str
+
+
+class ImageTriageNote(BaseModel):
+    image_id: str
+    kind: str
+    note: str = Field(min_length=30)
 
 
 class DraftReport(BaseModel):
@@ -89,7 +79,7 @@ class DraftReport(BaseModel):
     call_transcript: str | None
     responder_notes: str | None
     image_evidence: list[ImageEvidence]
-    analysis: VisionAnalysis
+    image_notes: list[ImageTriageNote]
     model: str
     generated_at: datetime
     limitations: list[str]

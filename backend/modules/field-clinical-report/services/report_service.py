@@ -4,13 +4,11 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
-import json
 import os
 import uuid
 from datetime import datetime, timezone
 from importlib import import_module
 
-from pydantic import ValidationError
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 
@@ -32,16 +30,55 @@ class InvalidVLMResponse(RuntimeError):
     pass
 
 
-SYSTEM_PROMPT = (
-    "You are drafting a pre-arrival emergency department handoff from first-responder photos and supplied incident notes. "
-    "Describe only directly visible findings, cite the image_id for every injury finding, and clearly mark uncertainty. "
-    "Keep caller/dispatch statements separate from image observations. Do not infer internal injuries, diagnose, estimate blood loss, "
-    "assign clinical severity, or recommend treatment from photographs. Never claim that a hospital was notified. "
-    "If no patient injury is visible, return an empty injury_findings list. "
-    "Return only a JSON object with keys injury_findings, scene_observations, discrepancies, uncertainties, "
-    "handoff_summary, hospital_preparation_notes. Each injury finding has image_ids, body_region, observation, certainty "
-    "where certainty is visible or uncertain. Hospital preparation notes are items for clinician review, not orders."
-)
+SYSTEM_PROMPT = """
+You are a clinical image-triage assistant. You write a short handoff note for ER staff and first responders from a single image. This is a TEST of an image-analysis pipeline.
+
+Output ONLY the note in exactly the layout below. No markdown, no code fences, no text before or after it. Keep every line under 70 characters.
+
+LAYOUT:
+
+ER TRIAGE NOTE (TEST OUTPUT ONLY)
+======================================================================
+TRIAGE: <CRITICAL | URGENT | LESS URGENT | CANNOT DETERMINE>
+<one-line visual reason, 12 words or fewer>
+----------------------------------------------------------------------
+INJURIES
+1. <Region, side> | <injury type> | BLEEDING: <ACTIVE | CONTROLLED | NONE VISIBLE | CANNOT ASSESS> | CONF: <high | medium | low>
+   size: <only if a clear scale is visible; otherwise omit this line>
+2. ... (one numbered entry per injury, most serious first)
+(write "None visible" if there are no injuries)
+----------------------------------------------------------------------
+BLEEDING
+Overall: <NONE VISIBLE | MINOR | MODERATE | MAJOR | CANNOT ASSESS>
+Control visible: <pressure, dressing, tourniquet, or none>
+----------------------------------------------------------------------
+PATIENT (VISIBLE ONLY)
+Position: <short phrase>
+Responsiveness: <cannot assess | appears responsive | appears unresponsive>
+Breathing: <cannot assess | visible labored | visible normal | no visible movement>
+----------------------------------------------------------------------
+OTHER FINDINGS
+- <deformity, swelling, exposed bone or tissue, foreign object, burn, wound contamination>
+(write "None visible" if there are none)
+----------------------------------------------------------------------
+HAZARDS AFFECTING CARE
+- <only hazards that affect treatment or transport, such as traffic, fire, entrapment>
+(write "None visible" if there are none)
+----------------------------------------------------------------------
+NOT ASSESSABLE FROM IMAGE
+<comma-separated list, e.g. airway, vital signs, mechanism, time since injury>
+----------------------------------------------------------------------
+Image check: <appears real | appears simulated | uncertain>
+Not a medical or legal assessment.
+
+RULES:
+- Describe only what is visible. Use plain clinical wording; no dramatic language.
+- Never identify anyone. Never infer cause, intent or blame.
+- A single image cannot reliably show breathing or responsiveness. Write "cannot assess" for both unless it is unmistakable.
+- Do not judge arterial versus venous bleeding. Do not estimate blood volume.
+- Do not describe the scene, vehicles or surroundings unless they affect care. Do not repeat the same finding in two sections.
+- Use only the allowed values shown in the layout.
+""".strip()
 
 
 def health() -> dict:
@@ -104,20 +141,25 @@ def _decode_image(image) -> tuple[bytes, str]:
     return raw, f"data:{image.media_type};base64,{clean_base64}"
 
 
-def _parse_analysis(content: str | None, allowed_image_ids: set[str]):
+def _validate_note(content: str | None) -> str:
     if not content:
         raise InvalidVLMResponse("VLM returned no final report content")
-    cleaned = content.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-    try:
-        analysis = schemas.VisionAnalysis.model_validate(json.loads(cleaned))
-    except (json.JSONDecodeError, ValidationError) as exc:
-        raise InvalidVLMResponse("VLM did not return a valid structured draft") from exc
-    for finding in analysis.injury_findings:
-        if not set(finding.image_ids) <= allowed_image_ids:
-            raise InvalidVLMResponse("VLM cited an image_id that was not supplied")
-    return analysis
+    note = content.strip()
+    required_lines = (
+        "ER TRIAGE NOTE (TEST OUTPUT ONLY)", "INJURIES", "BLEEDING",
+        "PATIENT (VISIBLE ONLY)", "OTHER FINDINGS", "HAZARDS AFFECTING CARE",
+        "NOT ASSESSABLE FROM IMAGE", "Not a medical or legal assessment.",
+    )
+    lines = note.splitlines()
+    if (not lines or lines[0] != required_lines[0]
+            or lines[-1] != required_lines[-1]
+            or any(line not in lines for line in required_lines)
+            or not any(line.startswith("TRIAGE: ") for line in lines)
+            or not any(line.startswith("Image check: ") for line in lines)
+            or any(len(line) > 70 for line in lines)
+            or "```" in note):
+        raise InvalidVLMResponse("VLM did not follow the ER triage note layout")
+    return note
 
 
 def generate_draft(request, *, client=None) -> dict:
@@ -131,40 +173,30 @@ def generate_draft(request, *, client=None) -> dict:
             "media_type": image.media_type, "sha256": hashlib.sha256(raw).hexdigest(),
         })
 
-    context = {
-        "call_id": request.call_id,
-        "incident_id": request.incident_id,
-        "dispatch_id": request.dispatch_id,
-        "incident_summary_from_ingestion": request.incident_summary,
-        "geolocation_from_ingestion": request.geolocation.model_dump(),
-        "call_transcript_from_ingestion": request.call_transcript,
-        "call_audio_reference": request.call_audio_reference,
-        "responder_notes": request.responder_notes,
-        "receiving_facility": request.receiving_facility_name or request.receiving_facility_id,
-        "hospital_eta_minutes": request.hospital_eta_minutes,
-        "images": [
-            {"image_id": image.image_id, "kind": image.kind, "caption_from_responder": image.caption}
-            for image, _ in images
-        ],
-    }
-    content = [{"type": "text", "text": "Create the structured draft from this supplied context and the following images:\n" + json.dumps(context)}]
-    for image, url in images:
-        content.append({"type": "text", "text": f"Image {image.image_id} ({image.kind})"})
-        content.append({"type": "image_url", "image_url": {"url": url}})
-
     model = os.getenv("DGX_VLM_MODEL", "omni")
     try:
-        completion = (client or _client()).chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": content}],
-            max_tokens=int(os.getenv("DGX_VLM_MAX_TOKENS", "4096")),
-            temperature=0,
-        )
-        answer = completion.choices[0].message.content
+        vlm = client or _client()
     except Exception as exc:
         raise VLMUnavailable("DGX Spark Omni VLM request failed; check the endpoint or SSH tunnel") from exc
+    notes = []
+    for image, url in images:
+        content = [
+            {"type": "text", "text": "Analyze this single image using the exact ER triage note layout. "
+             "The supplied call and dispatch details are not visual evidence."},
+            {"type": "image_url", "image_url": {"url": url}},
+        ]
+        try:
+            completion = vlm.chat.completions.create(
+                model=model,
+                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": content}],
+                max_tokens=int(os.getenv("DGX_VLM_MAX_TOKENS", "4096")),
+                temperature=0,
+            )
+            answer = completion.choices[0].message.content
+        except Exception as exc:
+            raise VLMUnavailable("DGX Spark Omni VLM request failed; check the endpoint or SSH tunnel") from exc
+        notes.append({"image_id": image.image_id, "kind": image.kind, "note": _validate_note(answer)})
 
-    analysis = _parse_analysis(answer, {image.image_id for image in request.images})
     return schemas.DraftReport(
         report_id=f"ERD-{uuid.uuid4().hex[:12].upper()}",
         call_id=request.call_id,
@@ -179,11 +211,11 @@ def generate_draft(request, *, client=None) -> dict:
         call_transcript=request.call_transcript,
         responder_notes=request.responder_notes,
         image_evidence=evidence,
-        analysis=analysis,
+        image_notes=notes,
         model=model,
         generated_at=datetime.now(timezone.utc),
         limitations=[
-            "Draft for receiving clinician review; no diagnosis or treatment decision is established from photographs.",
-            "Images and supplied notes may omit vital signs, concealed injuries, or changes after capture.",
+            "Test output for receiving clinician review; no diagnosis or treatment decision is established from photographs.",
+            "Image notes describe visible findings only; call and dispatch context is kept separately.",
         ],
     ).model_dump(mode="json")

@@ -23,14 +23,14 @@ PNG = base64.b64encode(buffer.getvalue()).decode()
 
 
 class FakeClient:
-    def __init__(self, analysis):
-        self.analysis = analysis
-        self.request = None
+    def __init__(self, note):
+        self.note = note
+        self.requests = []
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
 
     def create(self, **kwargs):
-        self.request = kwargs
-        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(self.analysis)))])
+        self.requests.append(kwargs)
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=self.note))])
 
 
 def make_request(**changes):
@@ -46,42 +46,79 @@ def make_request(**changes):
     return schemas.ReportRequest(**data)
 
 
-def analysis(image_id="injury-1"):
-    return {
-        "injury_findings": [{"image_ids": [image_id], "body_region": "lower leg", "observation": "Visible surface wound", "certainty": "visible"}],
-        "scene_observations": [], "discrepancies": [], "uncertainties": ["Depth cannot be determined from the image"],
-        "handoff_summary": "Reported collision; image shows a visible lower leg surface wound.",
-        "hospital_preparation_notes": ["Clinician review of wound image on arrival"],
-    }
+NOTE = """ER TRIAGE NOTE (TEST OUTPUT ONLY)
+======================================================================
+TRIAGE: CANNOT DETERMINE
+No clear injury visible.
+----------------------------------------------------------------------
+INJURIES
+None visible
+----------------------------------------------------------------------
+BLEEDING
+Overall: NONE VISIBLE
+Control visible: none
+----------------------------------------------------------------------
+PATIENT (VISIBLE ONLY)
+Position: cannot assess
+Responsiveness: cannot assess
+Breathing: cannot assess
+----------------------------------------------------------------------
+OTHER FINDINGS
+None visible
+----------------------------------------------------------------------
+HAZARDS AFFECTING CARE
+None visible
+----------------------------------------------------------------------
+NOT ASSESSABLE FROM IMAGE
+airway, vital signs, mechanism, time since injury
+----------------------------------------------------------------------
+Image check: uncertain
+Not a medical or legal assessment."""
 
 
 def test_dgx_omni_request_carries_context_and_image_evidence(monkeypatch):
     monkeypatch.setenv("DGX_VLM_MODEL", "omni")
-    client = FakeClient(analysis())
+    client = FakeClient(NOTE)
     report = service.generate_draft(make_request(), client=client)
     assert report["status"] == "draft_review_required"
     assert report["dispatch_id"] == "DSP-1"
     assert report["geolocation"]["locality"] == "Bandar Sunway"
-    assert report["analysis"]["injury_findings"][0]["image_ids"] == ["injury-1"]
+    assert report["image_notes"] == [{"image_id": "injury-1", "kind": "injury", "note": NOTE}]
     assert len(report["image_evidence"][0]["sha256"]) == 64
-    assert client.request["model"] == "omni"
-    user_parts = client.request["messages"][1]["content"]
-    assert "Road collision" in user_parts[0]["text"]
-    assert user_parts[2]["image_url"]["url"].startswith("data:image/png;base64,")
+    request = client.requests[0]
+    assert request["model"] == "omni"
+    assert request["messages"][0]["content"] == service.SYSTEM_PROMPT
+    assert "ER TRIAGE NOTE (TEST OUTPUT ONLY)" in service.SYSTEM_PROMPT
+    assert "A single image cannot reliably show breathing or responsiveness." in service.SYSTEM_PROMPT
+    user_parts = request["messages"][1]["content"]
+    assert "Road collision" not in user_parts[0]["text"]
+    assert user_parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
     assert "data_base64" not in json.dumps(report)
 
 
 def test_invalid_image_is_rejected_before_vlm_call():
-    client = FakeClient(analysis())
+    client = FakeClient(NOTE)
     request = make_request(images=[{"image_id": "injury-1", "kind": "injury", "media_type": "image/png", "data_base64": base64.b64encode(b"not a png" * 3).decode()}])
     with pytest.raises(service.InvalidImage):
         service.generate_draft(request, client=client)
-    assert client.request is None
+    assert not client.requests
 
 
-def test_uncited_image_reference_is_rejected():
+def test_invalid_note_layout_is_rejected():
     with pytest.raises(service.InvalidVLMResponse):
-        service.generate_draft(make_request(), client=FakeClient(analysis("missing-image")))
+        service.generate_draft(make_request(), client=FakeClient('{"injury_findings": []}'))
+
+
+def test_multiple_images_get_separate_single_image_notes():
+    request = make_request(images=[
+        {"image_id": "injury-1", "kind": "injury", "media_type": "image/png", "data_base64": PNG},
+        {"image_id": "site-1", "kind": "incident_site", "media_type": "image/png", "data_base64": PNG},
+    ])
+    client = FakeClient(NOTE)
+    report = service.generate_draft(request, client=client)
+    assert [item["image_id"] for item in report["image_notes"]] == ["injury-1", "site-1"]
+    assert len(client.requests) == 2
+    assert all(len(call["messages"][1]["content"]) == 2 for call in client.requests)
 
 
 def test_embedded_image_metadata_is_not_sent_to_vlm():
@@ -91,9 +128,9 @@ def test_embedded_image_metadata_is_not_sent_to_vlm():
     Image.new("RGB", (2, 2), "red").save(tagged, format="PNG", pnginfo=metadata)
     encoded = base64.b64encode(tagged.getvalue()).decode()
     request = make_request(images=[{"image_id": "injury-1", "kind": "injury", "media_type": "image/png", "data_base64": encoded}])
-    client = FakeClient(analysis())
+    client = FakeClient(NOTE)
     service.generate_draft(request, client=client)
-    data_uri = client.request["messages"][1]["content"][2]["image_url"]["url"]
+    data_uri = client.requests[0]["messages"][1]["content"][1]["image_url"]["url"]
     with Image.open(io.BytesIO(base64.b64decode(data_uri.split(",", 1)[1]))) as sent:
         assert "PatientName" not in sent.info
 
@@ -113,10 +150,11 @@ def test_http_draft_route_sends_openai_compatible_multimodal_request(monkeypatch
         assert request.url.path == "/v1/chat/completions"
         payload = json.loads(request.content)
         assert payload["model"] == "omni"
-        assert payload["messages"][1]["content"][2]["image_url"]["url"].startswith("data:image/png;base64,")
+        assert payload["messages"][0]["content"] == service.SYSTEM_PROMPT
+        assert payload["messages"][1]["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
         return httpx.Response(200, json={
             "id": "chatcmpl-test", "object": "chat.completion", "created": 0, "model": "omni",
-            "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": json.dumps(analysis())}}],
+            "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": NOTE}}],
         })
 
     client = OpenAI(base_url="http://dgx.test/v1", api_key="not-used", max_retries=0,
@@ -127,5 +165,5 @@ def test_http_draft_route_sends_openai_compatible_multimodal_request(monkeypatch
     )
 
     assert response.status_code == 200, response.text
-    assert response.json()["analysis"]["injury_findings"][0]["image_ids"] == ["injury-1"]
+    assert response.json()["image_notes"][0]["note"] == NOTE
     assert len(calls) == 1
