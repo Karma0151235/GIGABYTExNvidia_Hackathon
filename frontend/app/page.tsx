@@ -1,5 +1,5 @@
-import AppShell from "@/components/emergency/AppShell";
+import WorkflowPage from "@/modules/workflow/components/WorkflowPage";
 
 export default function Home() {
-  return <AppShell />;
+  return <WorkflowPage />;
 }

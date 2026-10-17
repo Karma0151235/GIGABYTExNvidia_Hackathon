@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Headphones, Play, UploadCloud } from "lucide-react";
+import { AlertTriangle, ArrowRight, Play, UploadCloud } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   getTriageCapabilities,
@@ -141,7 +141,14 @@ function CallGraph({ result, audioUrl }: { result: TriageResult; audioUrl?: stri
   );
 }
 
-export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (callId: string) => void }) {
+type Props = {
+  onOpenDispatch: (callId: string) => void;
+  onTriaged?: (name: string, result: TriageResult) => void;
+  onSelectCall?: (callId: string) => void;
+  renderBrief?: (callId: string) => React.ReactNode;
+};
+
+export default function LiveIntakePage({ onOpenDispatch, onTriaged, onSelectCall, renderBrief }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [samples, setSamples] = useState<VoiceSample[]>([]);
   const [calls, setCalls] = useState<Record<string, CallState>>({});
@@ -159,7 +166,9 @@ export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (ca
   const run = async (name: string, payload: Parameters<typeof triageCall>[0], audioUrl?: string) => {
     patch(name, { status: "running", audioUrl });
     try {
-      patch(name, { status: "done", result: await triageCall({ ...payload, caller: "999 live line" }), audioUrl });
+      const result = await triageCall({ ...payload, caller: "999 live line" });
+      patch(name, { status: "done", result, audioUrl });
+      onTriaged?.(name, result);
     } catch (caught) {
       patch(name, { status: "error", error: caught instanceof Error ? caught.message : "Triage failed" });
     }
@@ -193,16 +202,6 @@ export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (ca
 
   return (
     <section className="sf-shell flex h-full min-h-0 flex-col overflow-y-auto text-slate-800">
-      <header className="sticky top-0 z-20 flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white/95 px-5 py-3 shadow-sm">
-        <div className="grid h-10 w-10 place-items-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700"><Headphones size={20} /></div>
-        <div>
-          <h1 className="text-base font-bold tracking-tight text-slate-950">Live 999 Intake</h1>
-          <p className="text-[9px] font-bold uppercase tracking-[.18em] text-slate-500">Recording / transcript / decision tree / summary JSON</p>
-        </div>
-        <span className={`ml-auto rounded-full border px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide ${capabilities?.configured ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-          {capabilities?.configured ? `STT ${capabilities.model}` : "ElevenLabs key missing"}
-        </span>
-      </header>
 
       <div className="grid flex-1 gap-4 p-4 lg:grid-cols-[300px_1fr]">
         <aside className="sf-panel flex flex-col overflow-hidden">
@@ -210,6 +209,9 @@ export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (ca
             <button type="button" disabled={busy || !samples.length} onClick={() => void runAll()} className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 text-xs font-bold text-white disabled:opacity-50"><Play size={13} />Run all {samples.length}</button>
             <input ref={inputRef} type="file" className="hidden" accept="audio/mpeg,audio/wav,audio/webm,audio/mp4,audio/ogg,.m4a" onChange={(event) => void upload(event.target.files?.[0])} />
             <button type="button" onClick={() => inputRef.current?.click()} aria-label="Upload recording" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-300 text-slate-600"><UploadCloud size={15} /></button>
+          </div>
+          <div className={`border-b border-slate-200 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide ${capabilities?.configured ? "text-emerald-700" : "text-amber-700"}`}>
+            {capabilities?.configured ? `STT ${capabilities.model}` : "ElevenLabs key missing"}
           </div>
           {error ? <div className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{error}</div> : null}
           <ul className="min-h-0 flex-1 overflow-y-auto">
@@ -221,7 +223,7 @@ export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (ca
                 <li key={name}>
                   <button
                     type="button"
-                    onClick={() => { setSelected(name); if (!call && sample) void runSample(sample); }}
+                    onClick={() => { setSelected(name); if (call?.result) onSelectCall?.(call.result.summary.call_id); else if (!call && sample) void runSample(sample); }}
                     className={`flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2.5 text-left text-[11px] ${selected === name ? "bg-blue-50" : "hover:bg-slate-50"}`}
                   >
                     <span className="min-w-0 flex-1 truncate font-semibold text-slate-800">{name.replace(/\.mp3$/, "").replaceAll("_", " ")}</span>
@@ -238,9 +240,10 @@ export default function LiveIntakePage({ onOpenDispatch }: { onOpenDispatch: (ca
         <section className="sf-panel min-w-0 p-5">
           {current?.result ? (
             <>
+              {renderBrief?.(current.result.summary.call_id)}
               <CallGraph result={current.result} audioUrl={current.audioUrl} />
               {current.result.ingestion ? <p className="mt-3 text-[10px] font-semibold text-slate-600">Recorded in fusion as {current.result.ingestion.signal.id}.</p> : null}
-              {current.result.dispatch_preview?.routable ? <button type="button" onClick={() => onOpenDispatch(current.result!.summary.call_id)} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-700">View route on Live Dispatch <ArrowRight size={13} /></button> : null}
+              {current.result.summary.call_class === "emergency" ? <button type="button" onClick={() => onOpenDispatch(current.result!.summary.call_id)} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white">Open route <ArrowRight size={13} /></button> : null}
             </>
           ) : (
             <div className="grid h-full place-items-center text-center text-xs text-slate-500">

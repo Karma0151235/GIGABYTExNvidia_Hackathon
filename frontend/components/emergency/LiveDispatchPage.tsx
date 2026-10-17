@@ -33,6 +33,8 @@ type Props = {
   dispatchSnapshot: DispatchSnapshot | null;
   busyDispatchId: string | null;
   onDispatchAction: (action: DispatchAction) => Promise<unknown>;
+  onOpenResponder?: (callId: string, preview: MockCallPreview) => void;
+  onSelectCall?: (callId: string) => void;
 };
 
 export default function LiveDispatchPage({
@@ -50,6 +52,8 @@ export default function LiveDispatchPage({
   dispatchSnapshot,
   busyDispatchId,
   onDispatchAction,
+  onOpenResponder,
+  onSelectCall,
 }: Props) {
   const [mockLocation, setMockLocation] = useState("Puchong");
   const [mockClassification, setMockClassification] = useState<MockCallPreview["classification"]>("legit_distress");
@@ -92,6 +96,13 @@ export default function LiveDispatchPage({
     return () => { active = false; window.clearInterval(timer); };
   }, []);
 
+  useEffect(() => {
+    if (!initialCallId) return;
+    selectionTouched.current = true;
+    setManualPreview(null);
+    setSelectedPublishedCallId(initialCallId);
+  }, [initialCallId]);
+
   const runPreview = async (request: () => Promise<MockCallPreview>) => {
     setMockBusy(true);
     setMockError(null);
@@ -119,6 +130,7 @@ export default function LiveDispatchPage({
     selectionTouched.current = true;
     setManualPreview(null);
     setSelectedPublishedCallId(callId);
+    onSelectCall?.(callId);
   };
   const clearPreview = () => {
     selectionTouched.current = true;
@@ -291,7 +303,7 @@ export default function LiveDispatchPage({
             selectedRouteId={previewSelected ? mockRouteId : selectedRouteId}
             onSelectIncident={selectIncident}
             onSelectUnit={onSelectUnit}
-            onSelectRoute={onSelectRoute}
+            onSelectRoute={(id) => (id === mockRouteId && mockPreview?.call_id && onOpenResponder ? onOpenResponder(mockPreview.call_id, mockPreview) : onSelectRoute(id))}
           />
           </div>
           {previewSelected ? <aside className="w-[280px] shrink-0 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-sm">
@@ -300,6 +312,7 @@ export default function LiveDispatchPage({
             <p className="mt-2 text-slate-700">{previewSelected.unit_id} reaches {mockPreview?.matched_place ?? mockPreview?.location_text} in {previewSelected.eta_minutes} min over {previewSelected.distance_km} km.</p>
             <p className="mt-3 text-xs text-slate-500">Local OSM road route via OSRM. Locality names identify an approximate area; provide exact coordinates for a specific address.</p>
             <p className="mt-3 text-xs font-semibold text-amber-700">Preview only. No ambulance has been dispatched.</p>
+            {onOpenResponder && mockPreview?.call_id ? <button type="button" onClick={() => onOpenResponder(mockPreview.call_id!, mockPreview)} className="mt-4 w-full rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700">Open first responder &rarr;</button> : null}
           </aside> : <DispatchRecommendationPanel
             recommendations={dispatchSnapshot?.recommendations ?? []}
             units={dispatchSnapshot?.units ?? []}
