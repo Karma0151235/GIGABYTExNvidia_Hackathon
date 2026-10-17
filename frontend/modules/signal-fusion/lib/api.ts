@@ -7,6 +7,7 @@ import type {
   SignalCluster,
   TriageCapabilities,
   TriageResult,
+  VoiceSample,
 } from "../types";
 
 
@@ -116,6 +117,7 @@ export async function mergeClusters(sourceId: string, targetId: string): Promise
 
 
 export async function triageCall(payload: {
+  sample?: string;
   transcript?: string;
   audio_base64?: string;
   audio_filename?: string;
@@ -130,6 +132,13 @@ export async function triageCall(payload: {
   });
   if (!response.ok) throw await apiError(response, "Unable to triage call");
   return response.json() as Promise<TriageResult>;
+}
+
+
+export async function listVoiceSamples(): Promise<VoiceSample[]> {
+  const response = await fetch(`${API_BASE}/api/signal-fusion/triage/samples`, { cache: "no-store" });
+  if (!response.ok) throw await apiError(response, "Voice samples unavailable");
+  return response.json() as Promise<VoiceSample[]>;
 }
 
 

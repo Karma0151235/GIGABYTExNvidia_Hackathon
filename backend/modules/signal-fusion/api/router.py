@@ -125,66 +125,75 @@ async def ingest_report(payload: schemas.SignalIn):
         raise storage_error(exc) from exc
 
 
+@router.get("/triage/samples")
+async def triage_samples():
+    return [{"name": name, "url": f"/api/signal-fusion/triage/samples/{name}"} for name in triage_service.list_samples()]
+
+
+@router.get("/triage/samples/{name}")
+async def triage_sample_audio(name: str):
+    path = triage_service.resolve_sample(name)
+    if path is None:
+        raise HTTPException(404, "voice sample not found")
+    return FileResponse(path, media_type="audio/mpeg", content_disposition_type="inline")
+
+
 @router.post("/triage", response_model=schemas.TriageResult, status_code=201)
 async def triage_call(payload: schemas.TriageRequest):
-    """Live call triage: (audio|transcript) -> LLM extraction -> fusion ingest."""
+    """Live call triage: recording -> transcript -> decision tree -> summary; emergencies also enter fusion."""
     transcript = payload.transcript
-    audio_evidence = None
-    if transcript is None and payload.audio_base64:
-        try:
+    audio_url = None
+    try:
+        if payload.sample:
+            transcript = await run_in_threadpool(triage_service.transcribe_sample, payload.sample)
+            audio_url = f"/api/signal-fusion/triage/samples/{payload.sample}"
+        elif transcript is None and payload.audio_base64:
             transcript = await run_in_threadpool(
                 triage_service.transcribe_audio, payload.audio_base64, payload.audio_filename
             )
-            audio_evidence = await run_in_threadpool(
+            evidence = await run_in_threadpool(
                 triage_service.store_audio, payload.audio_base64, payload.audio_filename
             )
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-        except Exception as exc:
-            raise HTTPException(502, f"transcription failed: {exc}") from exc
-    if not transcript or len(transcript.strip()) < 5:
-        raise HTTPException(422, "provide transcript or audio_base64 with speech content")
+            audio_url = evidence["url"]
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"transcription failed: {exc}") from exc
+    if transcript is None:
+        raise HTTPException(422, "provide sample, audio_base64, or transcript")
 
-    extraction, provider = await run_in_threadpool(triage_service.triage_transcript, transcript)
-    fallback = (
-        (payload.latitude, payload.longitude)
-        if payload.latitude is not None and payload.longitude is not None
-        else None
-    )
-    latitude, longitude = triage_service.geocode(extraction.location_name, fallback)
+    decision, extraction, provider = await run_in_threadpool(triage_service.run_tree, transcript)
+    summary = {**triage_service.build_summary(transcript, decision, extraction), "audio_url": audio_url}
+    result = {"summary": summary, "path": [step.model_dump() for step in decision.path]}
+    if decision.call_class != "emergency":
+        # Silent and spam calls stop here; nothing enters fusion.
+        return result
+
+    location = summary["location"]
     signal = schemas.SignalIn(
         source="CALL",
         caller=payload.caller,
         transcript=transcript,
-        location=extraction.location_name if extraction.location_name != "unknown" else "Kuala Lumpur (unresolved)",
-        latitude=latitude,
-        longitude=longitude,
+        location=location["text"] or "Kuala Lumpur (unresolved)",
+        # Fusion needs coordinates; unresolved calls pin to KL centre and stay flagged in `missing`.
+        latitude=location["lat"] or payload.latitude or triage_service.KL_CENTER[0],
+        longitude=location["lng"] or payload.longitude or triage_service.KL_CENTER[1],
         metadata={
-            "triage_priority": extraction.priority,
+            "call_id": summary["call_id"],
+            "triage_priority": decision.priority,
             "triage_rationale": extraction.rationale,
             "triage_confidence": round(extraction.confidence, 2),
             "triage_provider": provider,
-            "caller_language": extraction.caller_language,
             "patient_count": extraction.patient_count,
-            "audio_url": audio_evidence["url"] if audio_evidence else "",
-            "audio_filename": audio_evidence["filename"] if audio_evidence else "",
-            "audio_content_type": audio_evidence["content_type"] if audio_evidence else "",
-            "audio_size_bytes": audio_evidence["size_bytes"] if audio_evidence else 0,
+            "missing_fields": ",".join(decision.missing_fields),
+            "audio_url": audio_url or "",
         },
     )
     try:
-        ingestion = engine.ingest_report(model_payload(signal))
+        result["ingestion"] = engine.ingest_report(model_payload(signal))
     except StorageUnavailable as exc:
         raise storage_error(exc) from exc
-    return {
-        "triage": {
-            **extraction.model_dump(),
-            "provider": provider,
-            "transcript": transcript,
-        },
-        "ingestion": ingestion,
-        "audio": audio_evidence,
-    }
+    return result
 
 
 @router.post("/signals", response_model=schemas.Signal, status_code=201)

@@ -23,6 +23,9 @@ SAMPLES = [
     ("10_p1_bm_jalan_tun_razak_duplicate.mp3", "Saya nampak kemalangan dekat Jalan Tun Razak, bawah jejambat. Kereta terbalik, ada asap keluar. Saya tak pasti berapa orang dalam, tapi seorang dekat jalan macam pengsan."),
     ("11_p1_manglish_petaling_jaya_stroke.mp3", "We're in Petaling Jaya. My uncle suddenly cannot talk properly, his face senget one side. He's awake but very confused. Is this stroke? Please come fast."),
     ("12_p2_tamil_titiwangsa_collision.mp3", "Titiwangsa dekat roundabout, motosikal accident. ஒருவர் jalan atas, dia sedar lagi but bleeding dekat leg. Ambulans cepat boleh?"),
+    # Non-emergency fixtures, made locally (ffmpeg pink noise / macOS `say`), never sent to TTS.
+    ("13_silent_open_line.mp3", ""),
+    ("14_spam_prank_call.mp3", "Ha ha ha, hello nine nine nine? This is a prank call lah. Saja test line, just kidding, bye."),
 ]
 
 
@@ -49,7 +52,7 @@ def main() -> None:
     generated = 0
     for filename, text in SAMPLES:
         destination = OUTPUT_DIR / filename
-        if destination.exists():
+        if destination.exists() or filename.startswith(("13_", "14_")):
             continue
         audio = client.text_to_speech.convert(
             voice_id=VOICE_ID,

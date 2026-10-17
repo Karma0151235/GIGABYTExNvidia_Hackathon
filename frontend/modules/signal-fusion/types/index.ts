@@ -116,30 +116,28 @@ export type RiskAssessment = {
   }[];
 };
 
-export type TriageCard = {
-  location_name: string;
-  patient_count: number;
-  condition_summary: string;
-  priority: "P1" | "P2" | "P3";
-  rationale: string;
-  confidence: number;
-  caller_language: string;
-  english_summary: string;
-  provider: "llm" | "heuristic";
+export type TriageSummary = {
+  call_id: string;
+  received_at: string;
+  call_class: "silent" | "spam" | "emergency";
+  priority: "P1" | "P2" | "P3" | null;
+  location: { text: string | null; area: string | null; lat: number | null; lng: number | null } | null;
+  patients: number | null;
+  conscious: boolean | null;
+  breathing: boolean | null;
+  complaint: string | null;
+  missing: string[];
   transcript: string;
+  audio_url: string | null;
 };
 
 export type TriageResult = {
-  triage: TriageCard;
-  ingestion: IngestionResult;
-  audio?: {
-    id: string;
-    filename: string;
-    content_type: string;
-    size_bytes: number;
-    url: string;
-  };
+  summary: TriageSummary;
+  path: { question: string; answer: string }[];
+  ingestion?: IngestionResult | null;
 };
+
+export type VoiceSample = { name: string; url: string };
 
 export type TriageCapabilities = {
   speech_to_text: string;

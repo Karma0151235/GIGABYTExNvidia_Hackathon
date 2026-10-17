@@ -68,6 +68,10 @@ export default function SignalIntakeModals({
           })
         : { transcript: triageTranscript };
       const result = await triageCall({ ...audioPayload, caller: "MERS 999 live intake" });
+      if (!result.ingestion) {
+        onError(`Call filtered as ${result.summary.call_class}; nothing entered fusion.`);
+        return;
+      }
       await onComplete(result.ingestion.cluster.id, result.ingestion.decision.reason);
     } catch (caught) {
       onError(caught instanceof Error ? caught.message : "Unable to triage call");

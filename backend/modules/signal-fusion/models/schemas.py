@@ -109,22 +109,10 @@ class TriageRequest(BaseModel):
     transcript: str | None = Field(default=None, min_length=5, max_length=4000)
     audio_base64: str | None = Field(default=None, max_length=8_000_000)
     audio_filename: str = "call.webm"
+    sample: str | None = Field(default=None, max_length=120, description="Bundled voice_samples/ file name")
     caller: str = Field(default="999 caller", min_length=1, max_length=120)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
-
-
-class TriageCard(BaseModel):
-    location_name: str
-    patient_count: int
-    condition_summary: str
-    priority: Literal["P1", "P2", "P3"]
-    rationale: str
-    confidence: float = Field(ge=0, le=1)
-    caller_language: str
-    english_summary: str
-    provider: Literal["llm", "heuristic"]
-    transcript: str
 
 
 class AudioEvidence(BaseModel):
@@ -135,10 +123,39 @@ class AudioEvidence(BaseModel):
     url: str
 
 
+class TreeStep(BaseModel):
+    question: str
+    answer: str
+
+
+class TriageLocation(BaseModel):
+    text: str | None
+    area: str | None
+    lat: float | None
+    lng: float | None
+
+
+class TriageSummary(BaseModel):
+    """Handoff contract from triage to routing/dispatch."""
+
+    call_id: str
+    received_at: str
+    call_class: Literal["silent", "spam", "emergency"]
+    priority: Literal["P1", "P2", "P3"] | None
+    location: TriageLocation | None
+    patients: int | None
+    conscious: bool | None
+    breathing: bool | None
+    complaint: str | None
+    missing: list[str]
+    transcript: str
+    audio_url: str | None = None
+
+
 class TriageResult(BaseModel):
-    triage: TriageCard
-    ingestion: IngestionResult
-    audio: AudioEvidence | None = None
+    summary: TriageSummary
+    path: list[TreeStep]
+    ingestion: IngestionResult | None = None
 
 
 class IncidentHandoff(BaseModel):

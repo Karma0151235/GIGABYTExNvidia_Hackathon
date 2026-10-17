@@ -12,6 +12,6 @@ def test_sample_manifest_has_unique_mp3_filenames():
     spec.loader.exec_module(module)
 
     filenames = [filename for filename, _ in module.SAMPLES]
-    assert len(filenames) == 12
+    assert len(filenames) == 14
     assert len(filenames) == len(set(filenames))
     assert all(filename.endswith(".mp3") for filename in filenames)

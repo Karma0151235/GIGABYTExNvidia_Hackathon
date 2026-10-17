@@ -64,3 +64,42 @@ def test_transcribe_audio_rejects_unsupported_file_type():
     encoded = base64.b64encode(b"not-audio").decode()
     with pytest.raises(ValueError, match="unsupported audio type"):
         triage_service.transcribe_audio(encoded, "call.txt")
+
+
+@pytest.mark.parametrize(
+    ("transcript", "call_class", "priority"),
+    [
+        ("", "silent", None),
+        ("(silence) [static] hello", "silent", None),
+        ("hahaha prank call je, saja test line 999", "spam", None),
+        ("Tolong, dekat KLCC ayah saya tak sedar dan tak bernafas", "emergency", "P1"),
+        ("Kemalangan dekat Cheras, kaki patah tapi dia sedar", "emergency", "P2"),
+        ("My neighbour feels a bit dizzy, can someone come check", "emergency", "P3"),
+        # Spam words beside real distress must never be filtered out.
+        ("This is not a prank, my friend is unconscious at Bangsar", "emergency", "P1"),
+    ],
+)
+def test_run_tree_classifies_calls(monkeypatch, transcript, call_class, priority):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    decision, extraction, _ = triage_service.run_tree(transcript)
+    assert decision.call_class == call_class
+    assert decision.priority == priority
+    assert (extraction is None) == (call_class == "silent")
+
+
+def test_run_tree_flags_missing_location(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    decision, extraction, _ = triage_service.run_tree("Someone collapsed and is unconscious, please hurry")
+    assert "location" in decision.missing_fields
+    summary = triage_service.build_summary("x", decision, extraction)
+    assert summary["location"]["lat"] is None
+
+
+def test_locate_prefers_kl_and_pj_landmarks():
+    assert triage_service.locate("klcc concourse")["area"] == "Kuala Lumpur"
+    assert triage_service.locate("Petaling Jaya")["area"] == "Petaling Jaya"
+    assert triage_service.locate("somewhere")["lat"] is None
+
+
+def test_resolve_sample_blocks_path_traversal():
+    assert triage_service.resolve_sample("../backend/.env") is None

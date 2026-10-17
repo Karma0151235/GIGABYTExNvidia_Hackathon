@@ -47,7 +47,6 @@ export default function MainSidebar({ activePage, onPageChange }: Props) {
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <div className="anwar-kicker px-3 pb-2">The golden minute</div>
         <div className="space-y-1">{coreNavItems.map((item) => <NavButton key={item.label} item={item} activePage={activePage} onPageChange={onPageChange} />)}</div>
       </nav>
       <div className="border-t border-[var(--anwar-divider)] p-4">
