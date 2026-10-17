@@ -8,6 +8,8 @@ $PbfPath = Join-Path $RepoRoot "osm-data\$PbfFileName"
 $PrepareScript = Join-Path $RepoRoot "backend\modules\live-dispatch\routing\prepare-osrm.ps1"
 $ComposeFile = Join-Path $RepoRoot "backend\modules\live-dispatch\routing\docker-compose.yml"
 $GraphMetrics = Join-Path $RepoRoot "backend\modules\live-dispatch\routing\routing-data\greater-kl.osrm.cell_metrics"
+$ExtractMarker = Join-Path $RepoRoot "backend\modules\live-dispatch\routing\routing-data\extract-bbox.txt"
+$PlaceIndex = Join-Path $RepoRoot "backend\modules\live-dispatch\data\osm_places.json"
 
 Write-Host ""
 Write-Host "ANWAR local routing setup" -ForegroundColor Cyan
@@ -34,8 +36,8 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-if (-not (Test-Path -LiteralPath $GraphMetrics -PathType Leaf)) {
-    Write-Host "Building the Greater KL road graph. This one-time step can take several minutes..."
+if (-not (Test-Path -LiteralPath $GraphMetrics -PathType Leaf) -or -not (Test-Path -LiteralPath $PlaceIndex -PathType Leaf) -or -not (Test-Path -LiteralPath $ExtractMarker -PathType Leaf) -or (Get-Content -LiteralPath $ExtractMarker -Raw).Trim() -ne "101.35,2.85,101.95,3.40") {
+    Write-Host "Preparing the regional road graph and OSM locality index..."
     & powershell -ExecutionPolicy Bypass -File $PrepareScript -PbfPath $PbfPath
     if ($LASTEXITCODE -ne 0) {
         throw "OSRM graph preparation failed with exit code $LASTEXITCODE"

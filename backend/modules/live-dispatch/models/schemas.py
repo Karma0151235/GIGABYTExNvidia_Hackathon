@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Coordinate = tuple[float, float]
 
@@ -12,6 +12,51 @@ class RouteRequest(BaseModel):
     coordinates: list[Coordinate] = Field(min_length=2, max_length=12)
     profile: Literal["driving"] = "driving"
     alternatives: bool = False
+
+
+class MockCallRequest(BaseModel):
+    call_id: str | None = Field(default=None, max_length=80)
+    classification: Literal["scam", "misc", "legit_distress"]
+    location_text: str = Field(min_length=2, max_length=500)
+    transcript: str | None = Field(default=None, max_length=4000)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+
+class IngestedGeolocation(BaseModel):
+    locality: str | None = Field(default=None, max_length=250)
+    address: str | None = Field(default=None, max_length=500)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def validate_location(self):
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude and longitude must be supplied together")
+        if self.latitude is None and not (self.locality or self.address):
+            raise ValueError("provide a locality or both coordinates")
+        return self
+
+
+class IngestedIncident(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    summary: str | None = Field(default=None, max_length=2000)
+    category: str | None = Field(default=None, max_length=100)
+    priority: Literal["P1", "P2", "P3", "P4"] | None = None
+
+
+class IngestionResultRequest(BaseModel):
+    call_id: str = Field(min_length=1, max_length=80)
+    classification: Literal["scam", "misc", "legit_distress"]
+    transcript: str | None = Field(default=None, max_length=4000)
+    geolocation: IngestedGeolocation | None = None
+    incident: IngestedIncident | None = None
+
+    @model_validator(mode="after")
+    def validate_distress(self):
+        if self.classification == "legit_distress" and (self.geolocation is None or self.incident is None):
+            raise ValueError("legit_distress requires geolocation and incident")
+        return self
 
 
 class RouteResult(BaseModel):

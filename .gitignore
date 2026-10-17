@@ -48,3 +48,4 @@ tmp/
 temp/
 *.tmp
 backend/data/call-audio/
+backend/modules/live-dispatch/data/osm_places.json

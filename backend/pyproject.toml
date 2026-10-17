@@ -12,6 +12,7 @@ dependencies = [
     "pytest>=8,<9",
     "openai>=1.60,<3",
     "elevenlabs>=2,<3",
+    "Pillow>=11,<13",
 ]
 
 [project.optional-dependencies]

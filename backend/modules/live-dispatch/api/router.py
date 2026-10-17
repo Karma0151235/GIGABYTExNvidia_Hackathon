@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from importlib import import_module
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 
 schemas = import_module("backend.modules.live-dispatch.models.schemas")
 service_module = import_module("backend.modules.live-dispatch.services.routing_service")
@@ -10,6 +10,7 @@ routing_service = service_module.routing_service
 RoutingUnavailable = service_module.RoutingUnavailable
 dispatch_module = import_module("backend.modules.live-dispatch.services.dispatch_service")
 dispatch_service = dispatch_module.dispatch_service
+mock_call_module = import_module("backend.modules.live-dispatch.services.mock_call_service")
 
 router = APIRouter()
 
@@ -25,6 +26,44 @@ async def route(payload: schemas.RouteRequest):
         return await routing_service.route(payload.coordinates)
     except RoutingUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/mock-call/preview")
+async def mock_call_preview(payload: schemas.MockCallRequest):
+    if (payload.latitude is None) != (payload.longitude is None):
+        raise HTTPException(status_code=422, detail="Latitude and longitude must be supplied together.")
+    try:
+        return await mock_call_module.preview_call(model_payload(payload))
+    except mock_call_module.PlaceNotFound as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RoutingUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/ingestion/preview")
+async def ingestion_preview(payload: schemas.IngestionResultRequest):
+    data = model_payload(payload)
+    geolocation = data.get("geolocation") or {}
+    incident = data.get("incident") or {}
+    flat = {
+        "call_id": data["call_id"], "classification": data["classification"],
+        "location_text": geolocation.get("locality") or geolocation.get("address") or "Unknown location",
+        "display_location": geolocation.get("address") or geolocation.get("locality"),
+        "latitude": geolocation.get("latitude"), "longitude": geolocation.get("longitude"),
+        "incident": incident,
+    }
+    try:
+        preview = await mock_call_module.preview_call(flat)
+        return mock_call_module.publish_ingestion_preview(preview)
+    except mock_call_module.PlaceNotFound as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RoutingUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/ingestion/latest")
+async def latest_ingestion_preview():
+    return mock_call_module.latest_ingestion_preview() or Response(status_code=204)
 
 
 @router.get("/snapshot", response_model=schemas.DispatchSnapshot)

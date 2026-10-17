@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Ambulance,
@@ -10,6 +10,7 @@ import {
   Timer,
 } from "lucide-react";
 import DispatchMap from "@/components/emergency/DispatchMap";
+import { fetchLatestIngestionPreview, previewIngestionResult, previewMockCall, type IngestionResult, type MockCallPreview } from "@/modules/live-dispatch/lib/api";
 import DispatchSidebar from "@/components/emergency/DispatchSidebar";
 import KPIStatCard from "@/components/emergency/KPIStatCard";
 import type { DispatchAction, DispatchLocation, DispatchRecommendation, DispatchSnapshot, RoutingStatus } from "@/modules/live-dispatch/types";
@@ -48,6 +49,55 @@ export default function LiveDispatchPage({
   busyDispatchId,
   onDispatchAction,
 }: Props) {
+  const [mockLocation, setMockLocation] = useState("Puchong");
+  const [mockClassification, setMockClassification] = useState<MockCallPreview["classification"]>("legit_distress");
+  const [ingestionJson, setIngestionJson] = useState(JSON.stringify({
+    call_id: "CALL-001", classification: "legit_distress",
+    transcript: "Car accident at Bandar Sunway. Driver has an injured leg.",
+    geolocation: { locality: "Bandar Sunway", address: "Bandar Sunway, Selangor" },
+    incident: { title: "Road traffic accident", summary: "Driver reports a leg injury", category: "traffic_collision", priority: "P2" },
+  }, null, 2));
+  const [mockPreview, setMockPreview] = useState<MockCallPreview | null>(null);
+  const [mockBusy, setMockBusy] = useState(false);
+  const [mockError, setMockError] = useState<string | null>(null);
+  const seenRevision = useRef<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const latest = await fetchLatestIngestionPreview();
+        if (active && latest?.revision != null && latest.revision !== seenRevision.current) {
+          seenRevision.current = latest.revision;
+          setMockPreview(latest);
+          setMockError(null);
+        }
+      } catch {
+        // The manual mock form remains usable while the ingestion API is offline.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
+  const runPreview = async (request: () => Promise<MockCallPreview>) => {
+    setMockBusy(true);
+    setMockError(null);
+    setMockPreview(null);
+    try {
+      const result = await request();
+      if (result.revision != null) seenRevision.current = result.revision;
+      setMockPreview(result);
+    } catch (error) {
+      setMockError(error instanceof Error ? error.message : "Could not preview this call");
+    } finally {
+      setMockBusy(false);
+    }
+  };
+
+  const runMockPreview = () => runPreview(() => previewMockCall(mockLocation, mockClassification));
+  const runIngestionPreview = () => runPreview(() => previewIngestionResult(JSON.parse(ingestionJson) as IngestionResult));
 
   const recommendationsByIncident = new Map(
     (dispatchSnapshot?.recommendations ?? [])
@@ -86,6 +136,27 @@ export default function LiveDispatchPage({
     availableUnits: dispatchUnits.filter((unit) => unit.baseHospitalId === facility.id && unit.status === "Available").length,
     nearbyIncidents: dispatchIncidents.filter((incident) => incident.receivingHospitalId === facility.id).length,
   }));
+  const mockRouteId = "MOCK-ROUTE-001";
+  const mockIncidentId = mockPreview?.call_id ?? "MOCK-CALL-001";
+  const previewSelected = mockPreview?.routable ? mockPreview.selected : undefined;
+  const mapRoutes: ResponseRoute[] = previewSelected ? [{
+    id: mockRouteId, unitId: previewSelected.unit_id, incidentId: mockIncidentId,
+    hospitalId: "", color: "#e11d48", coordinates: previewSelected.coordinates,
+    etaMinutes: previewSelected.eta_minutes, distanceKm: previewSelected.distance_km, leg: "to_scene",
+  }, ...routes] : routes;
+  const mapIncidents: Incident[] = previewSelected && mockPreview?.incident_coordinate ? [{
+    id: mockIncidentId, type: mockPreview.incident?.title ?? "Mock distress call", severity: mockPreview.incident?.priority === "P1" ? "Critical" : mockPreview.incident?.priority === "P3" ? "Medium" : mockPreview.incident?.priority === "P4" ? "Low" : "High", status: "New",
+    area: mockPreview.location_text ?? "Mock location", zone: "Mock preview",
+    coordinate: mockPreview.road_access_coordinate ?? mockPreview.incident_coordinate, minutesOpen: 0,
+    assignedUnitId: previewSelected.unit_id, etaMinutes: previewSelected.eta_minutes,
+    etaAvailable: true, allocationStatus: "recommended", targetStatus: "On target",
+    receivingHospitalId: "",
+  }, ...dispatchIncidents] : dispatchIncidents;
+  const mapUnits: AmbulanceUnit[] = previewSelected ? [{
+    id: previewSelected.unit_id, crew: "Simulated crew", status: "Available",
+    baseHospitalId: "", coordinate: previewSelected.origin_coordinate,
+    equipment: "ALS", fuelLevel: 100, lastUpdate: "Mock position",
+  }, ...dispatchUnits.filter((unit) => unit.id !== previewSelected.unit_id)] : dispatchUnits;
 
   const kpis = useMemo(
     () => [
@@ -119,8 +190,8 @@ export default function LiveDispatchPage({
   return (
     <div className="anwar-live-dispatch flex h-full min-h-0">
       <DispatchSidebar
-        incidentsData={dispatchIncidents}
-        unitsData={dispatchUnits}
+        incidentsData={mapIncidents}
+        unitsData={mapUnits}
         hospitalsData={dispatchFacilities}
         selectedIncidentId={selectedIncidentId}
         selectedUnitId={selectedUnitId}
@@ -129,6 +200,26 @@ export default function LiveDispatchPage({
         onSelectHospital={() => undefined}
       />
       <section className="flex min-w-0 flex-1 flex-col">
+        <div className="border-b border-slate-200 bg-white px-4 py-2.5">
+          <form onSubmit={(event) => { event.preventDefault(); void runMockPreview(); }} className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-bold text-slate-800">Mock call route preview</span>
+            <input aria-label="Caller location" value={mockLocation} onChange={(event) => setMockLocation(event.target.value)} placeholder="Bandar Sunway, Klang, Puchong..." className="min-w-[220px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900" />
+            <select aria-label="Call classification" value={mockClassification} onChange={(event) => setMockClassification(event.target.value as MockCallPreview["classification"])} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-900">
+              <option value="legit_distress">Legit distress</option><option value="scam">Scam</option><option value="misc">Misc</option>
+            </select>
+            <button type="submit" disabled={mockBusy || !mockLocation.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{mockBusy ? "Routing..." : "Preview route"}</button>
+            {mockPreview ? <button type="button" onClick={() => setMockPreview(null)} className="px-2 text-xs text-slate-600">Clear</button> : null}
+          </form>
+          <details className="mt-2 text-xs text-slate-700">
+            <summary className="cursor-pointer font-semibold">Paste ingestion JSON</summary>
+            <div className="mt-2 flex items-end gap-2">
+              <textarea aria-label="Ingestion JSON" value={ingestionJson} onChange={(event) => setIngestionJson(event.target.value)} rows={7} spellCheck={false} className="min-w-0 flex-1 rounded-lg border border-slate-300 p-2 font-mono text-[11px] text-slate-900" />
+              <button type="button" disabled={mockBusy} onClick={() => void runIngestionPreview()} className="rounded-lg bg-blue-600 px-3 py-2 font-semibold text-white disabled:opacity-50">Preview JSON route</button>
+            </div>
+          </details>
+          {mockError ? <p role="alert" className="mt-1 text-xs text-red-700">{mockError}</p> : null}
+          {mockPreview ? <p className="mt-1 text-xs text-slate-600">{previewSelected ? `${mockPreview.matched_place ?? mockPreview.location_text} · ${previewSelected.unit_id} · ${previewSelected.eta_minutes} min · ${previewSelected.distance_km} km · preview only` : mockPreview.reason}</p> : null}
+        </div>
         <div className="border-b border-slate-200/80 bg-white/90 px-4 py-2.5 backdrop-blur">
           <div className="grid grid-cols-2 gap-2.5 xl:grid-cols-3 2xl:grid-cols-6">
             {kpis.map((kpi) => (
@@ -139,29 +230,35 @@ export default function LiveDispatchPage({
         <div className="flex min-h-0 flex-1 gap-3.5 p-3.5">
           <div className="min-w-0 flex-1">
           <DispatchMap
-            routes={routes}
-            incidentsData={dispatchIncidents}
-            unitsData={dispatchUnits}
+            routes={mapRoutes}
+            incidentsData={mapIncidents}
+            unitsData={mapUnits}
             hospitalsData={dispatchFacilities}
-            routingStatus={routingStatus}
-            routingError={routingError}
+            routingStatus={previewSelected ? "online" : routingStatus}
+            routingError={previewSelected ? null : routingError}
             onRetryRouting={onRetryRouting}
-            selectedIncidentId={selectedIncidentId}
-            selectedUnitId={selectedUnitId}
-            selectedRouteId={selectedRouteId}
+            selectedIncidentId={previewSelected ? mockIncidentId : selectedIncidentId}
+            selectedUnitId={previewSelected ? previewSelected.unit_id : selectedUnitId}
+            selectedRouteId={previewSelected ? mockRouteId : selectedRouteId}
             onSelectIncident={onSelectIncident}
             onSelectUnit={onSelectUnit}
             onSelectRoute={onSelectRoute}
           />
           </div>
-          <DispatchRecommendationPanel
+          {previewSelected ? <aside className="w-[280px] shrink-0 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-sm">
+            <h3 className="font-bold text-slate-900">{mockPreview?.incident?.title ?? "Simulated ambulance"}</h3>
+            {mockPreview?.incident?.summary ? <p className="mt-1 text-xs text-slate-600">{mockPreview.incident.summary}</p> : null}
+            <p className="mt-2 text-slate-700">{previewSelected.unit_id} reaches {mockPreview?.matched_place ?? mockPreview?.location_text} in {previewSelected.eta_minutes} min over {previewSelected.distance_km} km.</p>
+            <p className="mt-3 text-xs text-slate-500">Local OSM road route via OSRM. Locality names identify an approximate area; provide exact coordinates for a specific address.</p>
+            <p className="mt-3 text-xs font-semibold text-amber-700">Preview only. No ambulance has been dispatched.</p>
+          </aside> : <DispatchRecommendationPanel
             recommendations={dispatchSnapshot?.recommendations ?? []}
             units={dispatchSnapshot?.units ?? []}
             selectedIncidentId={selectedIncidentId}
             busyDispatchId={busyDispatchId}
             error={routingError}
             onAction={onDispatchAction}
-          />
+          />}
         </div>
       </section>
     </div>
