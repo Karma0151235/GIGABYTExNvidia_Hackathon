@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, ImagePlus, Stethoscope } from "lucide-react";
+import { ImagePlus, Stethoscope } from "lucide-react";
 import { photoTriage, reached, type Action, type Case } from "@/modules/workflow/lib/caseReducer";
 import { draftClinicalReport } from "@/modules/workflow/lib/clinicalReport";
 
@@ -62,7 +62,7 @@ export default function ResponderTab({ item, dispatch }: { item?: Case; dispatch
       <div data-testid="responder-media" className="relative grid min-h-[420px] flex-[0_0_62%] place-items-center overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-400">
         {/* eslint-disable-next-line @next/next/no-img-element -- local data URL, nothing to optimise */}
         {photo ? <img src={photo} alt="Responder photo" className="h-full w-full object-contain" /> : (
-          <div className="text-center"><Camera size={44} className="mx-auto mb-3 text-slate-600" /><div className="text-sm font-semibold text-slate-300">Responder body-cam / photo feed</div><div className="mt-1 text-xs">{unit}</div></div>
+          <video data-testid="responder-video" src="/responder-feed.mp4" autoPlay muted loop playsInline className="h-full w-full object-cover" />
         )}
         <div className="absolute left-4 top-4 flex items-center gap-2">
           <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${onScene ? "bg-red-600 text-white" : "bg-slate-800 text-slate-400"}`}>{onScene ? "Live / on scene" : "Waiting"}</span>

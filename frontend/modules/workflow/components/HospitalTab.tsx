@@ -42,7 +42,7 @@ export default function HospitalTab({ item, snapshot, dispatch }: { item?: Case;
       <div data-testid="hospital-record" className="grid gap-3 md:grid-cols-3">
         <Field label="Ward / bed">{hospital.ward}{hospital.bed ? ` / bed ${hospital.bed}` : ""}</Field>
         <Field label="Admitting diagnosis">{hospital.admittedDiagnosis}</Field>
-        <Field label="Attending">{hospital.attending}</Field>
+        <Field label="Emergency response">{item.route?.unitId ?? item.preview?.selected?.unit_id ?? "MERS 999 ambulance"} / MERS 999 crew handover</Field>
         <Field label="Treatment plan"><ul className="list-disc pl-4 text-xs font-medium">{hospital.treatment.map((step) => <li key={step}>{step}</li>)}</ul></Field>
         <Field label="Presenting symptoms"><div className="text-xs font-medium">{responder.symptoms.join(", ")}</div></Field>
         <Field label="Pre-hospital treatment"><ul className="list-disc pl-4 text-xs font-medium">{responder.treatment.map((step) => <li key={step.action}>{step.action}</li>)}</ul></Field>
