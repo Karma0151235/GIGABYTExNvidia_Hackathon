@@ -5,6 +5,7 @@ import { Bot, Network, Send } from "lucide-react";
 import type { Case } from "@/modules/workflow/lib/caseReducer";
 import { buildDocs, buildGraph, type KNode, type Lane } from "@/modules/workflow/lib/knowledge";
 import { citedIds, retrieve, type Doc } from "@/modules/workflow/lib/retrieval";
+import { askCaseAudit } from "@/modules/workflow/lib/caseAudit";
 
 const W = 1200;
 const H = 600;
@@ -17,7 +18,7 @@ const LANE: Record<Lane, { stroke: string; fill: string; text: string }> = {
 };
 const SUGGESTIONS = ["What happened in this case?", "Why was it given this priority?", "Which ambulance responded and how fast?", "What were the vitals on scene?", "Where was the patient admitted and why?"];
 
-type Message = { role: "user" | "assistant"; content: string; sources?: Doc[]; offline?: boolean };
+type Message = { role: "user" | "assistant"; content: string; sources?: Doc[]; offline?: boolean; error?: string };
 
 const pos = (node: KNode) => ({ x: 100 + node.column * 200, y: SLOT_Y[node.slot] });
 const size = (node: KNode) => (node.slot === 0 ? { w: 168, h: 64 } : { w: 150, h: 50 });
@@ -81,7 +82,7 @@ function Answer({ message, onCite }: { message: Message; onCite: (id: string) =>
   const parts = message.content.split(/(\[S\d+(?:,\s*S\d+)*\])/g);
   return (
     <div data-testid="audit-answer" className="mr-4 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-800">
-      {message.offline ? <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">Nemotron unreachable / retrieved records only</div> : null}
+      {message.offline ? <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-amber-700" title={message.error}>Nemotron unreachable / retrieved records only{message.error ? `: ${message.error}` : ""}</div> : null}
       <p className="whitespace-pre-wrap">
         {parts.map((part, index) => (/^\[S\d+/.test(part) ? citedIds(part).map((id) => <button key={`${index}-${id}`} type="button" onClick={() => onCite(id)} className="mx-0.5 rounded bg-[#76b900]/15 px-1 font-mono text-[10px] font-bold text-[#3f6300] hover:bg-[#76b900]/30">{id}</button>) : <span key={index}>{part}</span>))}
       </p>
@@ -123,15 +124,11 @@ export default function AuditTab({ cases, selected }: { cases: Case[]; selected?
     setBusy(true);
     let reply: Message;
     try {
-      const response = await fetch("/api/audit/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text, sources, history }) });
-      const data = (await response.json().catch(() => ({}))) as { text?: string; error?: string };
-      if (response.ok && data.text) {
-        reply = { role: "assistant", content: data.text, sources };
-      } else {
-        reply = { role: "assistant", offline: true, sources, content: sources.length ? sources.map((source) => `${source.text} [${source.id}]`).join("\n") : "No matching records." };
-      }
-    } catch {
-      reply = { role: "assistant", offline: true, sources, content: sources.map((source) => `${source.text} [${source.id}]`).join("\n") || "No matching records." };
+      // Backend sees only the retrieved records; source text is capped to the schema limit.
+      const result = await askCaseAudit({ question: text, sources: sources.map(({ id, text: body }) => ({ id, text: body.slice(0, 2000) })), history: history.slice(-6).map((message) => ({ ...message, content: message.content.slice(0, 4000) })) });
+      reply = { role: "assistant", content: result.answer, sources };
+    } catch (error) {
+      reply = { role: "assistant", offline: true, sources, error: error instanceof Error ? error.message : "request failed", content: sources.map((source) => `${source.text} [${source.id}]`).join("\n") || "No matching records." };
     }
     setBusy(false);
     setMessages((current) => [...current, reply]);
