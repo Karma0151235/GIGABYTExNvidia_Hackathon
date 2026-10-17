@@ -32,7 +32,7 @@ export type Case = {
   timeline: TimelineEvent[];
 };
 
-export type Tab = 0 | 1 | 2 | 3;
+export type Tab = 0 | 1 | 2 | 3 | 4;
 export type State = { cases: Record<string, Case>; order: string[]; selectedId?: string; tab: Tab };
 
 export type Action =
