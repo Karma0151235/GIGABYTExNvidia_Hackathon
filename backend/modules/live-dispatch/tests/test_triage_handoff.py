@@ -18,6 +18,7 @@ places = import_module("backend.modules.live-dispatch.services.mock_call_service
 @pytest.fixture(autouse=True)
 def isolated_preview_store(monkeypatch, tmp_path):
     monkeypatch.setattr(places, "PREVIEW_DB", tmp_path / "ingestion_previews.sqlite3")
+    monkeypatch.setattr(triage_api.triage_service, "_llm_client", lambda: (None, None))
 
 
 class FakeRouter:
@@ -27,8 +28,6 @@ class FakeRouter:
 
 
 def test_emergency_summary_routes_to_osm_place_and_preserves_priority(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     seen = []
     monkeypatch.setattr(triage_api.engine, "ingest_report", lambda signal: seen.append(signal) or {"test": True})
     monkeypatch.setattr(places, "resolve_place", lambda text: {"name": "Puchong", "coordinate": [101.61, 3.03]})
@@ -62,8 +61,6 @@ def test_emergency_summary_routes_to_osm_place_and_preserves_priority(monkeypatc
     ("hahaha prank call je, saja test line 999", "scam"),
 ])
 def test_filtered_calls_never_enter_fusion_or_request_a_route(monkeypatch, transcript, classification):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.setattr(triage_api.engine, "ingest_report", lambda signal: pytest.fail("filtered call entered fusion"))
     summary = asyncio.run(triage_api.triage_call(triage_schemas.TriageRequest(transcript=transcript)))["summary"]
     preview = asyncio.run(places.preview_triage_summary(summary, FakeRouter()))
@@ -72,8 +69,6 @@ def test_filtered_calls_never_enter_fusion_or_request_a_route(monkeypatch, trans
 
 
 def test_unresolved_emergency_does_not_become_a_kl_centre_incident(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.setattr(places, "resolve_place", lambda text: (_ for _ in ()).throw(places.PlaceNotFound(text)))
     monkeypatch.setattr(triage_api.engine, "ingest_report", lambda signal: pytest.fail("unlocated call entered fusion"))
     summary = asyncio.run(triage_api.triage_call(triage_schemas.TriageRequest(
@@ -125,8 +120,6 @@ def test_triage_preview_endpoint_accepts_exact_intake_summary(monkeypatch):
 def test_processed_audio_publishes_route_for_live_dispatch(monkeypatch):
     from backend.server import app
 
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.setattr(triage_api.triage_service, "transcribe_sample",
                         lambda name: "Car accident at Puchong, patient has a broken leg")
     monkeypatch.setattr(triage_api.engine, "ingest_report", lambda signal: None)
@@ -152,8 +145,6 @@ def test_processed_audio_publishes_route_for_live_dispatch(monkeypatch):
 def test_multiple_audio_calls_keep_separate_selectable_routes(monkeypatch):
     from backend.server import app
 
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     transcripts = {
         "klcc.mp3": "My father collapsed and is unconscious at KLCC",
         "puchong.mp3": "Car accident at Puchong, patient has a broken leg",
@@ -194,8 +185,6 @@ def test_preview_store_updates_same_call_and_bounds_history(monkeypatch):
 
 
 def test_audio_route_preview_survives_fusion_storage_outage(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.setattr(places, "resolve_place", lambda text: {"name": "Puchong", "coordinate": [101.61, 3.03]})
 
     def unavailable(signal):

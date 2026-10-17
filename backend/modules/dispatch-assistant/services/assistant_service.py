@@ -92,7 +92,7 @@ class DispatchAssistantService:
                 history=history,
             )
         except Exception as exc:
-            query_result["limitations"].append(f"OpenRouter narrative unavailable ({type(exc).__name__}); verified query result shown.")
+            query_result["limitations"].append(f"DGX narrative unavailable ({type(exc).__name__}); verified query result shown.")
         if result is None:
             result = {
                 **query_result,

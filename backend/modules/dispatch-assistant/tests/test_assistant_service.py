@@ -54,7 +54,7 @@ def test_hospital_query_uses_current_acceptance_data_only():
 
 
 def test_copilot_uses_fixed_query_and_returns_visual_ranking(monkeypatch):
-    monkeypatch.setattr(service_module.copilot_service, "_openrouter_client", lambda: None)
+    monkeypatch.setattr(service_module.copilot_service, "_dgx_client", lambda: None)
 
     result = make_service().copilot(
         "Rank ambulances for INC-1 and explain the recommendation.",
@@ -72,8 +72,27 @@ def test_copilot_uses_fixed_query_and_returns_visual_ranking(monkeypatch):
     assert ranking["rows"][0]["eta_minutes"] == 4.2
 
 
+def test_copilot_narrative_uses_dgx_lightning(monkeypatch):
+    calls = {}
+
+    class Completions:
+        def create(self, **kwargs):
+            calls.update(kwargs)
+            message = type("Message", (), {"content": '{"answer":"AMB-07 leads.","rationale":"Its ETA is 4.2 minutes.","confidence":0.9,"suggested_actions":["Review the recommendation"]}'})()
+            return type("Result", (), {"choices": [type("Choice", (), {"message": message})()]})()
+
+    client = type("Client", (), {"chat": type("Chat", (), {"completions": Completions()})()})()
+    monkeypatch.setattr(service_module.copilot_service, "_dgx_client", lambda: client)
+    result = make_service().copilot("Why AMB-07?", incident_id="INC-1")
+
+    assert result["provider"] == "dgx"
+    assert result["model"] == "lightning"
+    assert calls["model"] == "lightning"
+    assert calls["response_format"] == {"type": "json_object"}
+
+
 def test_copilot_route_table_is_grounded_in_saved_osrm_decision(monkeypatch):
-    monkeypatch.setattr(service_module.copilot_service, "_openrouter_client", lambda: None)
+    monkeypatch.setattr(service_module.copilot_service, "_dgx_client", lambda: None)
 
     result = make_service().copilot("Show the route ETA for INC-1.", incident_id="INC-1")
 
@@ -91,7 +110,7 @@ def test_copilot_route_table_is_grounded_in_saved_osrm_decision(monkeypatch):
 
 
 def test_short_follow_up_reuses_previous_fixed_view(monkeypatch):
-    monkeypatch.setattr(service_module.copilot_service, "_openrouter_client", lambda: None)
+    monkeypatch.setattr(service_module.copilot_service, "_dgx_client", lambda: None)
     service = make_service()
     service.copilot("Rank ambulances for INC-1.", incident_id="INC-1", session_id="S-FOLLOW")
 
@@ -120,7 +139,7 @@ def test_oracle_view_retains_incident_linked_predictive_history():
 
 
 def test_greeting_and_irrelevant_prompt_do_not_repeat_overview(monkeypatch):
-    monkeypatch.setattr(service_module.copilot_service, "_openrouter_client", lambda: None)
+    monkeypatch.setattr(service_module.copilot_service, "_dgx_client", lambda: None)
     service = make_service()
 
     greeting = service.copilot("Hello, what can you do?", session_id="S-HELLO")

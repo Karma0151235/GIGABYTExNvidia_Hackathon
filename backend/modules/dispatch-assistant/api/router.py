@@ -18,7 +18,7 @@ router = APIRouter()
 async def health():
     return {
         "module": "dispatch-assistant",
-        "mode": "openrouter-with-deterministic-fallback",
+        "mode": "dgx-with-deterministic-fallback",
         "model": service_module.copilot_service.COPILOT_MODEL,
         "query_execution": "fixed-read-only-catalog",
         "actions": "recommendation-only",

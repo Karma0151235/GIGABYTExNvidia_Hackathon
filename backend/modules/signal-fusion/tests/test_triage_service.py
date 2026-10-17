@@ -11,38 +11,50 @@ triage_service = importlib.import_module(
 )
 
 
-def test_transcribe_audio_uses_elevenlabs_scribe(monkeypatch):
+def test_transcribe_audio_uses_dgx_omni(monkeypatch):
     calls = {}
 
-    class Result:
-        text = "Tak sedar di KLCC"
-
-    class SpeechToText:
-        def convert(self, **kwargs):
+    class Completions:
+        def create(self, **kwargs):
             calls.update(kwargs)
-            return Result()
+            return type("Result", (), {"choices": [type("Choice", (), {"message": type("Message", (), {"content": "Tak sedar di KLCC"})()})()]})()
 
     class Client:
-        speech_to_text = SpeechToText()
+        chat = type("Chat", (), {"completions": Completions()})()
 
-    monkeypatch.setenv("ELEVENLABS_API_KEY", "test-key")
-    monkeypatch.setattr(triage_service, "_elevenlabs_client", lambda: Client())
+    monkeypatch.setattr(triage_service, "_stt_client", lambda: Client())
 
     transcript = triage_service.transcribe_audio(
-        base64.b64encode(b"audio").decode(), "call.webm"
+        base64.b64encode(b"audio").decode(), "call.mp3"
     )
 
     assert transcript == "Tak sedar di KLCC"
-    assert calls["model_id"] == "scribe_v2"
-    assert calls["tag_audio_events"] is True
-    assert calls["diarize"] is True
-    assert calls["language_code"] is None
-    assert calls["file"].name == "call.webm"
+    assert calls["model"] == "omni"
+    assert calls["messages"][0]["content"][0]["audio_url"]["url"].startswith("data:audio/mpeg;base64,")
+
+
+def test_triage_transcript_parses_dgx_json(monkeypatch):
+    calls = {}
+
+    class Completions:
+        def create(self, **kwargs):
+            calls.update(kwargs)
+            message = type("Message", (), {"content": '{"call_class":"emergency","location_name":"KLCC","patient_count":1,"conscious":false,"breathing":true,"condition_summary":"Caller reports a collapse.","priority":"P1","rationale":"Patient is unconscious.","confidence":0.9}'})()
+            return type("Result", (), {"choices": [type("Choice", (), {"message": message})()]})()
+
+    client = type("Client", (), {"chat": type("Chat", (), {"completions": Completions()})()})()
+    monkeypatch.setattr(triage_service, "_llm_client", lambda: (client, "lightning"))
+    result, provider = triage_service.triage_transcript("Someone collapsed at KLCC")
+
+    assert provider == "llm"
+    assert result.priority == "P1"
+    assert calls["model"] == "lightning"
+    assert calls["response_format"] == {"type": "json_object"}
 
 
 def test_transcribe_audio_rejects_invalid_base64():
     with pytest.raises(ValueError, match="valid base64"):
-        triage_service.transcribe_audio("not base64!", "call.webm")
+        triage_service.transcribe_audio("not base64!", "call.mp3")
 
 
 def test_store_audio_preserves_validated_evidence(monkeypatch):
@@ -80,7 +92,7 @@ def test_transcribe_audio_rejects_unsupported_file_type():
     ],
 )
 def test_run_tree_classifies_calls(monkeypatch, transcript, call_class, priority):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(triage_service, "_llm_client", lambda: (None, None))
     decision, extraction, _ = triage_service.run_tree(transcript)
     assert decision.call_class == call_class
     assert decision.priority == priority
@@ -88,7 +100,7 @@ def test_run_tree_classifies_calls(monkeypatch, transcript, call_class, priority
 
 
 def test_run_tree_flags_missing_location(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr(triage_service, "_llm_client", lambda: (None, None))
     decision, extraction, _ = triage_service.run_tree("Someone collapsed and is unconscious, please hurry")
     assert "location" in decision.missing_fields
     summary = triage_service.build_summary("x", decision, extraction)

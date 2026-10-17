@@ -11,7 +11,7 @@ import {
 import type { TriageCapabilities, TriageResult, VoiceSample } from "@/modules/signal-fusion/types";
 
 const MAX_AUDIO_BYTES = 6_000_000;
-const CONCURRENCY = 3; // ponytail: fixed pool keeps ElevenLabs under its concurrent-request limit
+const CONCURRENCY = 3; // Keep the DGX request pool bounded.
 
 // Static shape of the backend tree (triage_service.run_tree); the response path says how far a call got.
 const TREE = [
@@ -207,11 +207,11 @@ export default function LiveIntakePage({ onOpenDispatch, onTriaged, onSelectCall
         <aside className="sf-panel flex flex-col overflow-hidden">
           <div className="flex gap-2 border-b border-slate-200 p-3">
             <button type="button" disabled={busy || !samples.length} onClick={() => void runAll()} className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 text-xs font-bold text-white disabled:opacity-50"><Play size={13} />Run all {samples.length}</button>
-            <input ref={inputRef} type="file" className="hidden" accept="audio/mpeg,audio/wav,audio/webm,audio/mp4,audio/ogg,.m4a" onChange={(event) => void upload(event.target.files?.[0])} />
+            <input ref={inputRef} type="file" className="hidden" accept="audio/mpeg,audio/wav,.mp3,.wav" onChange={(event) => void upload(event.target.files?.[0])} />
             <button type="button" onClick={() => inputRef.current?.click()} aria-label="Upload recording" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-300 text-slate-600"><UploadCloud size={15} /></button>
           </div>
           <div className={`border-b border-slate-200 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide ${capabilities?.configured ? "text-emerald-700" : "text-amber-700"}`}>
-            {capabilities?.configured ? `STT ${capabilities.model}` : "ElevenLabs key missing"}
+            {capabilities?.configured ? `STT ${capabilities.model}` : "DGX transcription unavailable"}
           </div>
           {error ? <div className="flex items-start gap-2 border-b border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700"><AlertTriangle size={14} className="mt-0.5 shrink-0" />{error}</div> : null}
           <ul className="min-h-0 flex-1 overflow-y-auto">

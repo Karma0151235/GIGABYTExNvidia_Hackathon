@@ -108,7 +108,7 @@ class IngestionResult(BaseModel):
 class TriageRequest(BaseModel):
     transcript: str | None = Field(default=None, min_length=5, max_length=4000)
     audio_base64: str | None = Field(default=None, max_length=8_000_000)
-    audio_filename: str = "call.webm"
+    audio_filename: str = "call.mp3"
     sample: str | None = Field(default=None, max_length=120, description="Bundled voice_samples/ file name")
     caller: str = Field(default="999 caller", min_length=1, max_length=120)
     latitude: float | None = Field(default=None, ge=-90, le=90)

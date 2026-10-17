@@ -110,9 +110,9 @@ async def signals():
 @router.get("/triage/capabilities")
 async def triage_capabilities():
     return {
-        "speech_to_text": "ElevenLabs Scribe",
-        "model": triage_service.ELEVENLABS_STT_MODEL,
-        "configured": bool(triage_service.os.environ.get("ELEVENLABS_API_KEY")),
+        "speech_to_text": "DGX Spark Omni",
+        "model": triage_service.STT_MODEL,
+        "configured": True,
         "supported_extensions": sorted(triage_service.ALLOWED_AUDIO_EXTENSIONS),
         "max_audio_bytes": triage_service.MAX_AUDIO_BYTES,
         "preserves_audio_evidence": True,

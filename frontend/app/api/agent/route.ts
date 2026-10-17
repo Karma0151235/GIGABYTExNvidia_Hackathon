@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// OpenAI-compatible chat endpoint. Point AGENT_LLM_BASE_URL at OpenRouter today, DGX Spark vLLM later
-// (e.g. http://192.168.0.108:9006/v1 with AGENT_LLM_MODEL=nano). No key needed for the DGX.
+// DGX Spark Nano OpenAI-compatible chat endpoint. No API key required.
 const PROMPTS = {
   call_brief:
     "You are a 999 dispatch assistant. Write a 2-4 sentence plain-English brief for the dispatcher from the triage JSON and transcript: who, what, where, priority, and what is still unknown. Only state facts present in the input. No diagnosis, no treatment advice. Plain text, no markdown.",
@@ -23,11 +22,10 @@ export async function POST(request: NextRequest) {
   const prompt = body.kind ? PROMPTS[body.kind] : undefined;
   if (!prompt) return NextResponse.json({ error: "Unknown kind" }, { status: 400 });
 
-  const key = process.env.AGENT_LLM_API_KEY;
   try {
     const response = await fetch(`${base.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
         // Nemotron nano/lightning reason first and leave content null until done; give them room.

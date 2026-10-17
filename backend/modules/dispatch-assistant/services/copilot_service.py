@@ -1,4 +1,4 @@
-"""Low-cost OpenRouter narrative layer over fixed operational query results."""
+"""DGX Spark narrative layer over fixed operational query results."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-COPILOT_MODEL = os.getenv("ANWAR_COPILOT_MODEL", "openai/gpt-4o-mini")
+COPILOT_MODEL = os.getenv("DGX_COPILOT_MODEL", "lightning")
 
 
 class CopilotNarrative(BaseModel):
@@ -29,23 +29,16 @@ COPILOT_SYSTEM_PROMPT = (
 )
 
 
-def _openrouter_client():
-    key = os.getenv("OPENROUTER_API_KEY")
-    if not key:
-        return None
+def _dgx_client():
     try:
         from openai import OpenAI
     except ImportError:
         return None
     return OpenAI(
-        api_key=key,
-        base_url="https://openrouter.ai/api/v1",
-        default_headers={
-            "HTTP-Referer": os.getenv("ANWAR_PUBLIC_URL", "http://localhost:3000"),
-            "X-OpenRouter-Title": "ANWAR Dispatch Copilot",
-        },
-        timeout=20.0,
-        max_retries=1,
+        api_key="not-used",
+        base_url=os.getenv("DGX_COPILOT_BASE_URL", "http://192.168.0.108:9000/v1"),
+        timeout=60.0,
+        max_retries=0,
     )
 
 
@@ -58,7 +51,7 @@ def copilot_answer(
     history: list[dict[str, Any]] | None = None,
 ) -> dict | None:
     """Add a grounded narrative while preserving deterministic visual artifacts."""
-    client = _openrouter_client()
+    client = _dgx_client()
     if client is None:
         return None
     payload = {
@@ -78,15 +71,12 @@ def copilot_answer(
         model=COPILOT_MODEL,
         messages=[
             {"role": "system", "content": COPILOT_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Operator question: {question}\n\nFixed query result:\n{json.dumps(payload, default=str)}"},
+            {"role": "user", "content": f"Operator question: {question}\n\nFixed query result:\n{json.dumps(payload, default=str)}\n\nReturn only JSON matching this schema:\n{json.dumps(schema)}"},
         ],
-        response_format={
-            "type": "json_schema",
-            "json_schema": {"name": "anwar_dispatch_copilot", "strict": True, "schema": schema},
-        },
+        response_format={"type": "json_object"},
         temperature=0.1,
-        max_tokens=500,
-        extra_body={"provider": {"require_parameters": True}},
+        max_tokens=2048,
+        extra_body={"chat_template_kwargs": {"enable_thinking": False}},
     )
     content = completion.choices[0].message.content
     if not content:
@@ -99,7 +89,7 @@ def copilot_answer(
         "rationale": parsed.rationale,
         "confidence": round(parsed.confidence, 2),
         "suggested_actions": parsed.suggested_actions[:3],
-        "sources": [*query_result["sources"], f"openrouter:{COPILOT_MODEL}"],
-        "provider": "openrouter",
+        "sources": [*query_result["sources"], f"dgx:{COPILOT_MODEL}"],
+        "provider": "dgx",
         "model": COPILOT_MODEL,
     }

@@ -3,15 +3,13 @@
 Decision tree (run_tree): speech? -> genuine? -> life threat? -> urgent?
 Silent and spam calls end at the tree; emergencies carry a summary forward for routing.
 
-Extraction uses OpenAI (OPENAI_API_KEY) or OpenRouter (OPENROUTER_API_KEY) when set,
-otherwise a deterministic keyword heuristic so the pipeline always runs.
+Extraction uses DGX Spark, with a deterministic keyword fallback.
 """
 
 from __future__ import annotations
 
 import base64
 import binascii
-import io
 import mimetypes
 import os
 import re
@@ -24,12 +22,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[4]
-TRIAGE_MODEL = os.environ.get("ANWAR_TRIAGE_MODEL", "gpt-4o-mini")
-ELEVENLABS_STT_MODEL = os.environ.get("ELEVENLABS_STT_MODEL", "scribe_v2")
+TRIAGE_MODEL = os.environ.get("DGX_TRIAGE_MODEL", "lightning")
+STT_MODEL = os.environ.get("DGX_STT_MODEL", "omni")
 MAX_AUDIO_BYTES = 6_000_000
 AUDIO_DIR = Path(os.environ.get("ANWAR_CALL_AUDIO_DIR", ROOT / "backend" / "data" / "call-audio"))
 VOICE_SAMPLES_DIR = ROOT / "voice_samples"
-ALLOWED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".webm", ".m4a", ".mp4", ".ogg"}
+ALLOWED_AUDIO_EXTENSIONS = {".mp3", ".wav"}
 
 # ponytail: mock geocoder, KL + PJ landmarks first so they win when a call names several places.
 # Swap for a real geocoder (Google / Nominatim) post-hackathon.
@@ -119,21 +117,23 @@ def _llm_client():
         from openai import OpenAI
     except ImportError:
         return None, None
-    if os.environ.get("OPENAI_API_KEY"):
-        return OpenAI(), TRIAGE_MODEL
-    if os.environ.get("OPENROUTER_API_KEY"):
-        client = OpenAI(api_key=os.environ["OPENROUTER_API_KEY"], base_url="https://openrouter.ai/api/v1")
-        return client, f"openai/{TRIAGE_MODEL}"
-    return None, None
+    return OpenAI(
+        api_key="not-used",
+        base_url=os.environ.get("DGX_TRIAGE_BASE_URL", "http://192.168.0.108:9000/v1"),
+        timeout=60.0,
+        max_retries=0,
+    ), os.environ.get("DGX_TRIAGE_MODEL", TRIAGE_MODEL)
 
 
-def _elevenlabs_client():
-    api_key = os.environ.get("ELEVENLABS_API_KEY")
-    if not api_key:
-        raise RuntimeError("ELEVENLABS_API_KEY is required for audio transcription")
-    from elevenlabs.client import ElevenLabs
+def _stt_client():
+    from openai import OpenAI
 
-    return ElevenLabs(api_key=api_key)
+    return OpenAI(
+        api_key="not-used",
+        base_url=os.environ.get("DGX_STT_BASE_URL", "http://192.168.0.108:9001/v1"),
+        timeout=90.0,
+        max_retries=0,
+    )
 
 
 def decode_audio(audio_base64: str, filename: str) -> tuple[bytes, str]:
@@ -177,22 +177,23 @@ def resolve_audio(audio_id: str) -> Path | None:
 
 
 def _scribe(audio_bytes: bytes, filename: str) -> str:
-    audio = io.BytesIO(audio_bytes)
-    audio.name = filename
-    result = _elevenlabs_client().speech_to_text.convert(
-        file=audio,
-        model_id=ELEVENLABS_STT_MODEL,
-        language_code=None,
-        tag_audio_events=True,
-        diarize=True,
-        # Bias Scribe toward known place names so geocoding gets "KLCC", not "KSCC". Keep <=100 terms (billing floor).
-        keyterms=list(GAZETTEER),
+    content_type = "audio/mpeg" if Path(filename).suffix.lower() == ".mp3" else "audio/wav"
+    audio_url = f"data:{content_type};base64,{base64.b64encode(audio_bytes).decode('ascii')}"
+    result = _stt_client().chat.completions.create(
+        model=os.environ.get("DGX_STT_MODEL", STT_MODEL),
+        messages=[{"role": "user", "content": [
+            {"type": "audio_url", "audio_url": {"url": audio_url}},
+            {"type": "text", "text": "Transcribe this emergency call verbatim. Return only the spoken words."},
+        ]}],
+        max_tokens=2048,
+        temperature=0.2,
+        extra_body={"top_k": 1, "chat_template_kwargs": {"enable_thinking": False}},
     )
-    # Empty transcript is a silent call, not an error; run_tree classifies it.
-    return result.text.strip()
+    # Empty transcript is a silent call; run_tree classifies it.
+    return (result.choices[0].message.content or "").strip()
 
 
-def transcribe_audio(audio_base64: str, filename: str = "call.webm") -> str:
+def transcribe_audio(audio_base64: str, filename: str = "call.mp3") -> str:
     audio_bytes, _ = decode_audio(audio_base64, filename)
     return _scribe(audio_bytes, filename)
 
@@ -217,17 +218,23 @@ def triage_transcript(transcript: str) -> tuple[TriageExtraction, str]:
     """Returns (extraction, provider) where provider is 'llm' or 'heuristic'."""
     client, model = _llm_client()
     if client is not None:
-        completion = client.chat.completions.parse(
-            model=model,
-            messages=[
-                {"role": "system", "content": TRIAGE_SYSTEM_PROMPT},
-                {"role": "user", "content": transcript},
-            ],
-            response_format=TriageExtraction,
-        )
-        parsed = completion.choices[0].message.parsed
-        if parsed is not None:
-            return parsed, "llm"
+        try:
+            completion = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": TRIAGE_SYSTEM_PROMPT + " Return only JSON matching this schema: " + str(TriageExtraction.model_json_schema())},
+                    {"role": "user", "content": transcript},
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=2048,
+                temperature=0.2,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            )
+            content = completion.choices[0].message.content
+            if content:
+                return TriageExtraction.model_validate_json(content), "llm"
+        except Exception:
+            pass
     return _heuristic_triage(transcript), "heuristic"
 
 
