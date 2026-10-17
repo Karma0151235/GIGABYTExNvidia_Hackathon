@@ -1,0 +1,22 @@
+{
+  "dataset": "ANWAR Kuala Lumpur dispatch seed v1",
+  "hospitals": [
+    {"id":"hkl","name":"Hospital Kuala Lumpur","coordinate":[101.7006,3.1727],"trauma":true,"icu":true},
+    {"id":"ijn","name":"Institut Jantung Negara","coordinate":[101.7047,3.1714],"trauma":false,"icu":true},
+    {"id":"hctm","name":"Hospital Canselor Tuanku Muhriz UKM","coordinate":[101.7275,3.0985],"trauma":true,"icu":true},
+    {"id":"umsc","name":"UM Specialist Centre","coordinate":[101.6512,3.1147],"trauma":true,"icu":false},
+    {"id":"setapak","name":"Setapak Emergency Base","coordinate":[101.7201,3.1997],"trauma":false,"icu":false}
+  ],
+  "routes": [
+    {"id":"RTE-INC-2048","unit_id":"AMB-01","incident_id":"INC-2048","hospital_id":"hkl","origin":[101.6906,3.1667],"destination":[101.7073,3.1439],"color":"#dc2626"},
+    {"id":"RTE-INC-2049","unit_id":"AMB-02","incident_id":"INC-2049","hospital_id":"ijn","origin":[101.6997,3.1694],"destination":[101.7101,3.1552],"color":"#2563eb"},
+    {"id":"RTE-INC-2050","unit_id":"AMB-03","incident_id":"INC-2050","hospital_id":"hctm","origin":[101.7275,3.0965],"destination":[101.7063,3.1653],"color":"#2563eb"},
+    {"id":"RTE-INC-2051","unit_id":"AMB-04","incident_id":"INC-2051","hospital_id":"umsc","origin":[101.6562,3.1207],"destination":[101.7071,3.1828],"color":"#2563eb"},
+    {"id":"RTE-INC-2052","unit_id":"AMB-05","incident_id":"INC-2052","hospital_id":"setapak","origin":[101.7301,3.1937],"destination":[101.7245,3.1970],"color":"#2563eb"},
+    {"id":"RTE-INC-2053","unit_id":"AMB-06","incident_id":"INC-2053","hospital_id":"hkl","origin":[101.6906,3.1707],"destination":[101.6640,3.1127],"color":"#2563eb"},
+    {"id":"RTE-INC-2054","unit_id":"AMB-07","incident_id":"INC-2054","hospital_id":"ijn","origin":[101.6997,3.1754],"destination":[101.6642,3.1123],"color":"#dc2626"},
+    {"id":"RTE-INC-2055","unit_id":"AMB-08","incident_id":"INC-2055","hospital_id":"hctm","origin":[101.7375,3.0925],"destination":[101.7397,3.1084],"color":"#2563eb"},
+    {"id":"RTE-INC-2056","unit_id":"AMB-09","incident_id":"INC-2056","hospital_id":"umsc","origin":[101.6412,3.1127],"destination":[101.6924,3.1459],"color":"#2563eb"},
+    {"id":"RTE-INC-2057","unit_id":"AMB-10","incident_id":"INC-2057","hospital_id":"setapak","origin":[101.7151,3.2017],"destination":[101.6936,3.1853],"color":"#2563eb"}
+  ]
+}

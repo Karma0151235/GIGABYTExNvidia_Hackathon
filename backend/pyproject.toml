@@ -1,0 +1,27 @@
+[project]
+name = "anwar-backend"
+version = "0.1.0"
+description = "Unified FastAPI backend for the ANWAR emergency operations platform."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.34,<1",
+    "psycopg[binary]>=3.2,<4",
+    "numpy>=2.0,<3",
+    "scikit-learn>=1.5,<2",
+    "pytest>=8,<9",
+    "openai>=1.60,<3",
+    "elevenlabs>=2,<3",
+]
+
+[project.optional-dependencies]
+ai = [
+    "sentence-transformers>=3.4,<4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false

@@ -1,0 +1,373 @@
+from __future__ import annotations
+
+from importlib import import_module
+
+from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse
+
+
+schemas = import_module("backend.modules.signal-fusion.models.schemas")
+triage_service = import_module("backend.modules.signal-fusion.services.triage_service")
+engine_module = import_module("backend.modules.signal-fusion.services.fusion_engine")
+engine = engine_module.engine
+InvalidTransition = engine_module.InvalidTransition
+RiskExpired = engine_module.RiskExpired
+InvalidRiskValidity = engine_module.InvalidRiskValidity
+StorageUnavailable = engine_module.StorageUnavailable
+
+router = APIRouter()
+
+
+def model_payload(model) -> dict:
+    return model.model_dump() if hasattr(model, "model_dump") else model.dict()
+
+
+def storage_error(exc: StorageUnavailable) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail={
+            "code": "signal_fusion_storage_unavailable",
+            "message": str(exc),
+            "recovery": "Start anwar-postgres with: docker compose up -d anwar-postgres",
+        },
+    )
+
+
+def operator_id(x_operator_id: str) -> str:
+    actor = x_operator_id.strip()
+    if not actor or len(actor) > 120:
+        raise HTTPException(422, "X-Operator-ID must contain 1 to 120 non-whitespace characters")
+    return actor
+
+
+@router.get("/health")
+async def health():
+    return {"engine": "signal-fusion", "mode": "realtime", **engine.health()}
+
+
+@router.get("/contract")
+async def contract():
+    return {
+        "module": "signal-fusion",
+        "contract_version": "1.1",
+        "ingestion_endpoint": "/api/signal-fusion/ingest",
+        "supported_sources": [
+            "WEATHER", "TRAFFIC", "CCTV", "CALL", "FIELD", "RADIO", "SMS", "APP"
+        ],
+        "matching_policy": {
+            "incident_radius_km": 1.5,
+            "risk_radius_km": 3.0,
+            "incident_window_minutes": 15,
+            "preserve_raw_evidence": True,
+            "automatic_dispatch": False,
+        },
+        "incident_feed": "/api/signal-fusion/incidents",
+        "event_feed": "/api/signal-fusion/events?after={cursor}",
+        "event_types": [
+            "signal_fusion.incident.promoted.v1",
+            "signal_fusion.incident.updated.v1",
+            "signal_fusion.risk.assessed.v1",
+            "signal_fusion.risk.level_changed.v1",
+            "signal_fusion.risk.acknowledged.v1",
+        ],
+        "downstream_owner": "command-center",
+    }
+
+
+@router.get("/snapshot", response_model=schemas.Snapshot)
+async def snapshot():
+    try:
+        return engine.snapshot()
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/signals", response_model=list[schemas.Signal])
+async def signals():
+    try:
+        return engine.snapshot()["signals"]
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/triage/capabilities")
+async def triage_capabilities():
+    return {
+        "speech_to_text": "ElevenLabs Scribe",
+        "model": triage_service.ELEVENLABS_STT_MODEL,
+        "configured": bool(triage_service.os.environ.get("ELEVENLABS_API_KEY")),
+        "supported_extensions": sorted(triage_service.ALLOWED_AUDIO_EXTENSIONS),
+        "max_audio_bytes": triage_service.MAX_AUDIO_BYTES,
+        "preserves_audio_evidence": True,
+        "automatic_dispatch": False,
+    }
+
+
+@router.get("/audio/{audio_id}")
+async def call_audio(audio_id: str):
+    path = triage_service.resolve_audio(audio_id)
+    if path is None:
+        raise HTTPException(404, "call audio not found")
+    return FileResponse(
+        path,
+        media_type=None,
+        filename=path.name,
+        content_disposition_type="inline",
+    )
+
+
+@router.post("/ingest", response_model=schemas.IngestionResult, status_code=201)
+async def ingest_report(payload: schemas.SignalIn):
+    try:
+        return engine.ingest_report(model_payload(payload))
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/triage", response_model=schemas.TriageResult, status_code=201)
+async def triage_call(payload: schemas.TriageRequest):
+    """Live call triage: (audio|transcript) -> LLM extraction -> fusion ingest."""
+    transcript = payload.transcript
+    audio_evidence = None
+    if transcript is None and payload.audio_base64:
+        try:
+            transcript = await run_in_threadpool(
+                triage_service.transcribe_audio, payload.audio_base64, payload.audio_filename
+            )
+            audio_evidence = await run_in_threadpool(
+                triage_service.store_audio, payload.audio_base64, payload.audio_filename
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(502, f"transcription failed: {exc}") from exc
+    if not transcript or len(transcript.strip()) < 5:
+        raise HTTPException(422, "provide transcript or audio_base64 with speech content")
+
+    extraction, provider = await run_in_threadpool(triage_service.triage_transcript, transcript)
+    fallback = (
+        (payload.latitude, payload.longitude)
+        if payload.latitude is not None and payload.longitude is not None
+        else None
+    )
+    latitude, longitude = triage_service.geocode(extraction.location_name, fallback)
+    signal = schemas.SignalIn(
+        source="CALL",
+        caller=payload.caller,
+        transcript=transcript,
+        location=extraction.location_name if extraction.location_name != "unknown" else "Kuala Lumpur (unresolved)",
+        latitude=latitude,
+        longitude=longitude,
+        metadata={
+            "triage_priority": extraction.priority,
+            "triage_rationale": extraction.rationale,
+            "triage_confidence": round(extraction.confidence, 2),
+            "triage_provider": provider,
+            "caller_language": extraction.caller_language,
+            "patient_count": extraction.patient_count,
+            "audio_url": audio_evidence["url"] if audio_evidence else "",
+            "audio_filename": audio_evidence["filename"] if audio_evidence else "",
+            "audio_content_type": audio_evidence["content_type"] if audio_evidence else "",
+            "audio_size_bytes": audio_evidence["size_bytes"] if audio_evidence else 0,
+        },
+    )
+    try:
+        ingestion = engine.ingest_report(model_payload(signal))
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+    return {
+        "triage": {
+            **extraction.model_dump(),
+            "provider": provider,
+            "transcript": transcript,
+        },
+        "ingestion": ingestion,
+        "audio": audio_evidence,
+    }
+
+
+@router.post("/signals", response_model=schemas.Signal, status_code=201)
+async def ingest_legacy(payload: schemas.SignalIn):
+    """Backward-compatible endpoint for existing channel adapters."""
+    try:
+        return engine.ingest(model_payload(payload))
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/risk-signals", response_model=schemas.RiskIngestionResult, status_code=201)
+async def ingest_risk_signal(payload: schemas.RiskSignalIn):
+    try:
+        return engine.ingest_risk_signal(model_payload(payload))
+    except InvalidRiskValidity as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except RiskExpired as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/risks", response_model=list[schemas.RiskAssessment])
+async def risks():
+    try:
+        return engine.list_risks()
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/risks/{risk_id}/acknowledge", response_model=schemas.RiskAssessment)
+async def acknowledge_risk(
+    risk_id: str,
+    x_operator_id: str = Header(default="console-operator"),
+):
+    try:
+        return engine.acknowledge_risk(risk_id, operator_id(x_operator_id))
+    except KeyError:
+        raise HTTPException(404, "risk assessment not found") from None
+    except RiskExpired as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/clusters", response_model=list[schemas.Cluster])
+async def clusters():
+    try:
+        return engine.snapshot()["clusters"]
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post(
+    "/clusters/{cluster_id}/promote-to-incident",
+    response_model=schemas.PromotionResult,
+)
+async def promote_to_incident(
+    cluster_id: str,
+    x_operator_id: str = Header(default="console-operator"),
+):
+    try:
+        return engine.promote(cluster_id, x_operator_id)
+    except KeyError:
+        raise HTTPException(404, "cluster not found") from None
+    except InvalidTransition as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/clusters/{cluster_id}/override", response_model=schemas.Cluster)
+async def override_cluster_recommendation(
+    cluster_id: str,
+    payload: schemas.OverrideRequest,
+    x_operator_id: str = Header(default="console-operator"),
+):
+    try:
+        return engine.override_recommendation(
+            cluster_id,
+            payload.recommended_action,
+            payload.reason,
+            operator_id(x_operator_id),
+        )
+    except KeyError:
+        raise HTTPException(404, "cluster not found") from None
+    except InvalidTransition as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/clusters/{cluster_id}/split")
+async def split_cluster(
+    cluster_id: str,
+    payload: schemas.SplitRequest,
+    x_operator_id: str = Header(default="console-operator"),
+):
+    try:
+        return engine.split(
+            cluster_id,
+            payload.signal_ids,
+            payload.reason,
+            operator_id(x_operator_id),
+        )
+    except KeyError:
+        raise HTTPException(404, "cluster or signal not found") from None
+    except InvalidTransition as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/clusters/{cluster_id}/{action}", response_model=schemas.Cluster)
+async def cluster_action(
+    cluster_id: str,
+    action: str,
+    x_operator_id: str = Header(default="console-operator"),
+):
+    if action not in {"verify", "promote", "dismiss"}:
+        raise HTTPException(400, "action must be verify, promote, or dismiss")
+    try:
+        return engine.action(cluster_id, action, x_operator_id)
+    except KeyError:
+        raise HTTPException(404, "cluster not found") from None
+    except InvalidTransition as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.post("/clusters/merge", response_model=schemas.Cluster)
+async def merge(
+    payload: schemas.MergeRequest,
+    x_operator_id: str = Header(default="console-operator"),
+):
+    try:
+        return engine.merge(
+            payload.source_cluster_id,
+            payload.target_cluster_id,
+            x_operator_id,
+        )
+    except KeyError:
+        raise HTTPException(404, "one or both clusters were not found") from None
+    except InvalidTransition as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/incidents", response_model=list[schemas.IncidentHandoff])
+async def incidents():
+    try:
+        return engine.list_incidents()
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/incidents/{incident_id}", response_model=schemas.IncidentHandoff)
+async def incident(incident_id: str):
+    try:
+        return engine.get_incident(incident_id)
+    except KeyError:
+        raise HTTPException(404, "incident handoff not found") from None
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/events", response_model=schemas.EventFeed)
+async def events(
+    after: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    try:
+        return engine.events(after, limit)
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc
+
+
+@router.get("/audit", response_model=list[schemas.AuditEvent])
+async def audit(limit: int = Query(default=100, ge=1, le=500)):
+    try:
+        return engine.audit(limit)
+    except StorageUnavailable as exc:
+        raise storage_error(exc) from exc

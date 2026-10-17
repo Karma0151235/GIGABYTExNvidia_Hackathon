@@ -1,0 +1,728 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --anwar-bg: #f8fafc;
+  --anwar-surface: #ffffff;
+  --anwar-surface-muted: #f1f5f9;
+  --anwar-text: #0f172a;
+  --anwar-muted: #475569;
+  --anwar-divider: #cbd5e1;
+  --anwar-primary: #2563eb;
+  --anwar-primary-strong: #1d4ed8;
+  --anwar-cyan: #0891b2;
+  --anwar-gold: var(--anwar-primary);
+  --anwar-green: #047857;
+  --anwar-red: #dc2626;
+  --font-heading: "Aptos Display", "Segoe UI", sans-serif;
+  --font-display: var(--font-heading);
+  --font-body: "Aptos", "Segoe UI", sans-serif;
+  --panel: var(--anwar-surface);
+  --line: var(--anwar-divider);
+}
+
+html { color-scheme: light; }
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 78% -12%, rgba(14, 165, 233, 0.1), transparent 32rem),
+    var(--anwar-bg);
+  color: var(--anwar-text);
+  font-family: var(--font-body);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.maplibregl-map {
+  font-family: var(--font-body);
+}
+
+.maplibregl-ctrl-attrib {
+  border-radius: 8px 0 0 0;
+  background: rgba(255, 255, 255, 0.84) !important;
+  color: #64748b !important;
+  backdrop-filter: blur(10px);
+}
+
+.route-halo {
+  filter: blur(1px) drop-shadow(0 0 18px currentColor);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.route-main {
+  filter: drop-shadow(0 0 10px rgba(53, 231, 255, 0.48));
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: routeDraw 1.45s ease-out forwards;
+}
+
+.route-flow {
+  stroke-dasharray: 1 18;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: routeFlow 0.95s linear infinite;
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.8));
+}
+
+.route-flow-critical {
+  animation-duration: 0.64s;
+  filter: drop-shadow(0 0 16px rgba(255, 77, 109, 0.9));
+}
+
+.route-flow-warning {
+  animation-duration: 0.82s;
+  filter: drop-shadow(0 0 14px rgba(255, 190, 92, 0.82));
+}
+
+.vehicle-icon,
+.node-icon,
+.base-icon,
+.hospital-icon,
+.distress-icon,
+.pulse-icon {
+  background: transparent;
+  border: 0;
+}
+
+.node-tooltip {
+  border: 1px solid rgba(186, 246, 255, 0.18) !important;
+  border-radius: 6px !important;
+  background: rgba(4, 14, 20, 0.78) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  color: rgba(231, 251, 255, 0.88) !important;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.hospital-tooltip {
+  border-color: rgba(255, 77, 109, 0.42) !important;
+  color: #fff !important;
+}
+
+.distress-tooltip {
+  border-color: rgba(255, 190, 92, 0.48) !important;
+  color: #fff !important;
+}
+
+.glass-panel {
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    var(--panel);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(22px);
+}
+
+.scanline::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(53, 231, 255, 0.12),
+    transparent
+  );
+  animation: scan 5s linear infinite;
+}
+
+.earth-sphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.95), transparent 0 9%, transparent 10%),
+    radial-gradient(circle at 32% 28%, #2ddfff 0 0.5%, transparent 1%),
+    radial-gradient(circle at 36% 34%, #1775b6 0 15%, #0e4a7a 36%, #061526 72%, #010409 100%);
+  box-shadow:
+    inset -44px -36px 70px rgba(0, 0, 0, 0.72),
+    inset 26px 20px 48px rgba(182, 251, 255, 0.16),
+    0 0 42px rgba(53, 231, 255, 0.32),
+    0 0 120px rgba(53, 231, 255, 0.18);
+}
+
+.earth-sphere::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background-image:
+    radial-gradient(ellipse at 12% 48%, #48aa62 0 8%, transparent 8.5%),
+    radial-gradient(ellipse at 18% 62%, #8bc46b 0 4%, transparent 4.5%),
+    radial-gradient(ellipse at 32% 35%, #4da866 0 9%, transparent 9.5%),
+    radial-gradient(ellipse at 42% 54%, #3e8e59 0 12%, transparent 12.5%),
+    radial-gradient(ellipse at 56% 43%, #b6b05b 0 9%, transparent 9.5%),
+    radial-gradient(ellipse at 62% 58%, #4a9a60 0 8%, transparent 8.5%),
+    radial-gradient(ellipse at 75% 34%, #5fae67 0 7%, transparent 7.5%),
+    radial-gradient(ellipse at 84% 64%, #4f9d67 0 6%, transparent 6.5%),
+    linear-gradient(90deg, transparent, rgba(255,255,255,.05), transparent);
+  background-size: 82% 92%, 92% 86%, 74% 80%, 90% 90%, 92% 80%, 80% 78%, 76% 88%, 72% 84%, 200% 100%;
+  background-position: 0% 40%;
+  filter: saturate(1.12) contrast(1.08);
+  animation: earthRotate 16s linear infinite;
+}
+
+.earth-sphere::after {
+  position: absolute;
+  inset: -8%;
+  content: "";
+  background:
+    radial-gradient(ellipse at 30% 38%, rgba(255,255,255,.7) 0 7%, transparent 8%),
+    radial-gradient(ellipse at 58% 28%, rgba(255,255,255,.5) 0 8%, transparent 9%),
+    radial-gradient(ellipse at 65% 66%, rgba(255,255,255,.4) 0 12%, transparent 13%),
+    repeating-linear-gradient(12deg, transparent 0 18px, rgba(255,255,255,.18) 19px 22px, transparent 23px 44px);
+  opacity: 0.42;
+  mix-blend-mode: screen;
+  animation: cloudDrift 8s ease-in-out infinite alternate;
+}
+
+@keyframes routeFlow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -76;
+  }
+}
+
+.sf-shell {
+  background:
+    radial-gradient(circle at 72% 4%, rgba(14, 165, 233, 0.1), transparent 28%),
+    linear-gradient(rgba(14, 165, 233, 0.025) 1px, transparent 1px),
+    #f8fafc;
+  background-size: auto, 100% 5px, auto;
+}
+.sf-panel {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.045), transparent 28%),
+    rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.09), inset 0 1px #ffffff;
+}
+.sf-grid {
+  background-image: linear-gradient(rgba(53, 231, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(53, 231, 255, 0.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.sf-shell ::-webkit-scrollbar { width: 5px; height: 5px; }
+.sf-shell ::-webkit-scrollbar-track { background: transparent; }
+.sf-shell ::-webkit-scrollbar-thumb { background: rgba(14, 116, 144, 0.24); border-radius: 10px; }
+.sf-shell .sf-panel .text-white { color: #020617 !important; }
+.sf-shell .sf-panel .text-slate-300 { color: #1e293b !important; }
+.sf-shell .sf-panel .text-slate-400 { color: #334155 !important; }
+.sf-shell .sf-panel .text-slate-500 { color: #475569 !important; }
+
+.anwar-shell {
+  background: var(--anwar-bg);
+  color: var(--anwar-text);
+}
+
+.anwar-sidebar {
+  background: var(--anwar-surface);
+  border-color: var(--anwar-divider);
+}
+
+.anwar-kicker {
+  color: var(--anwar-gold);
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.anwar-nav-button {
+  border-color: transparent;
+  border-radius: 4px;
+  color: var(--anwar-muted);
+}
+
+.anwar-nav-button:hover,
+.anwar-nav-button.is-active {
+  border-color: var(--anwar-divider);
+  background: var(--anwar-bg);
+  color: var(--anwar-gold);
+}
+
+.anwar-topbar {
+  display: flex;
+  height: 62px;
+  flex: none;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--anwar-divider);
+  padding: 0 26px;
+  color: var(--anwar-muted);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.anwar-engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--anwar-green) 45%, transparent);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--anwar-green);
+}
+
+.anwar-engine > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.anwar-panel {
+  border: 1px solid var(--anwar-divider);
+  border-radius: 4px;
+  background: var(--anwar-surface);
+}
+
+.anwar-page,
+.anwar-live-dispatch {
+  background: var(--anwar-bg);
+  color: var(--anwar-text);
+}
+
+.anwar-page .bg-white,
+.anwar-page .bg-slate-50,
+.anwar-page .bg-slate-100,
+.anwar-live-dispatch .bg-white,
+.anwar-live-dispatch .bg-slate-50 {
+  background-color: var(--anwar-surface) !important;
+}
+
+.anwar-page .border-slate-100,
+.anwar-page .border-slate-200,
+.anwar-page .border-slate-300,
+.anwar-live-dispatch .border-slate-200,
+.anwar-live-dispatch .border-slate-300 {
+  border-color: var(--anwar-divider) !important;
+}
+
+.anwar-page .text-slate-950,
+.anwar-page .text-slate-900,
+.anwar-page .text-slate-800,
+.anwar-live-dispatch .text-slate-950,
+.anwar-live-dispatch .text-slate-900,
+.anwar-live-dispatch .text-slate-800 {
+  color: var(--anwar-text) !important;
+}
+
+.anwar-page .text-slate-700,
+.anwar-page .text-slate-600,
+.anwar-live-dispatch .text-slate-700,
+.anwar-live-dispatch .text-slate-600 {
+  color: rgb(236 231 221 / 78%) !important;
+}
+
+.anwar-page .text-slate-500,
+.anwar-live-dispatch .text-slate-500 {
+  color: var(--anwar-muted) !important;
+}
+
+.anwar-page .text-slate-400,
+.anwar-live-dispatch .text-slate-400 {
+  color: rgb(236 231 221 / 52%) !important;
+}
+
+.anwar-page .bg-blue-600,
+.anwar-live-dispatch .bg-blue-600 {
+  background: var(--anwar-gold) !important;
+  color: #161311 !important;
+}
+
+.anwar-page .rounded-xl,
+.anwar-live-dispatch .rounded-xl {
+  border-radius: 4px;
+}
+
+.sf-shell {
+  background: var(--anwar-bg) !important;
+  color: var(--anwar-text) !important;
+}
+
+.sf-shell .sf-panel {
+  border-color: var(--anwar-divider) !important;
+  border-radius: 4px !important;
+  background: var(--anwar-surface) !important;
+  box-shadow: none !important;
+}
+
+.sf-shell .sf-panel .text-white,
+.sf-shell .sf-panel .text-slate-300 {
+  color: var(--anwar-text) !important;
+}
+
+.sf-shell .sf-panel .text-slate-400,
+.sf-shell .sf-panel .text-slate-500,
+.sf-shell .sf-panel .text-slate-600 {
+  color: var(--anwar-muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}
+.sf-shell .sf-panel .text-slate-600 { color: #475569 !important; }
+.sf-shell .sf-panel .text-cyan-300 { color: #0e7490 !important; }
+.sf-shell .sf-panel .text-amber-300 { color: #92400e !important; }
+.sf-shell .sf-panel .text-red-300 { color: #dc2626 !important; }
+.sf-shell .sf-panel .text-emerald-300 { color: #047857 !important; }
+.sf-shell .sf-panel [class*="border-white"] { border-color: rgba(100, 116, 139, 0.34) !important; }
+.sf-shell .sf-panel [class*="bg-black"] { background-color: #f1f5f9 !important; }
+.sf-shell .sf-panel [class*="bg-white/"] { background-color: rgba(226, 232, 240, 0.82) !important; }
+.sf-shell .sf-panel input,
+.sf-shell .sf-panel select,
+.sf-shell .sf-panel textarea {
+  border-color: #94a3b8;
+  background: #ffffff;
+  color: #020617;
+}
+.sf-shell .sf-panel input::placeholder,
+.sf-shell .sf-panel textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+.sf-shell .sf-panel .sf-map .text-slate-200 { color: #e2e8f0 !important; }
+.sf-shell .sf-panel .sf-map .text-slate-400 { color: #cbd5e1 !important; }
+.sf-shell .sf-panel .sf-map .text-cyan-200 { color: #a5f3fc !important; }
+.sf-shell .sf-panel .sf-map .text-cyan-300 { color: #67e8f9 !important; }
+.sf-shell .sf-panel .sf-map [class*="border-white"] {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Keep the existing Signal Fusion markup in the redesign after its legacy
+   light-mode compatibility rules above have run. */
+.sf-shell .sf-panel .text-slate-600 { color: var(--anwar-muted) !important; }
+.sf-shell .sf-panel .text-cyan-300,
+.sf-shell .sf-panel .text-amber-300 { color: var(--anwar-gold) !important; }
+.sf-shell .sf-panel .text-red-300 { color: var(--anwar-red) !important; }
+.sf-shell .sf-panel .text-emerald-300 { color: var(--anwar-green) !important; }
+.sf-shell .sf-panel [class*="border-white"] { border-color: var(--anwar-divider) !important; }
+.sf-shell .sf-panel [class*="bg-black"],
+.sf-shell .sf-panel [class*="bg-white/"] { background-color: var(--anwar-bg) !important; }
+.sf-shell .sf-panel input,
+.sf-shell .sf-panel select,
+.sf-shell .sf-panel textarea {
+  border-color: var(--anwar-divider);
+  background: var(--anwar-bg);
+  color: var(--anwar-text);
+}
+.sf-shell .sf-panel input::placeholder,
+.sf-shell .sf-panel textarea::placeholder { color: var(--anwar-muted); }
+
+/* One compatibility layer for the legacy light-mode utilities used inside
+   the five operator workspaces. Keep MapLibre's raster tiles untouched. */
+.anwar-workspace {
+  background: var(--anwar-bg);
+  color: var(--anwar-text);
+}
+
+.anwar-workspace .bg-white,
+.anwar-workspace .bg-slate-50,
+.anwar-workspace .bg-slate-100 {
+  background-color: var(--anwar-surface) !important;
+}
+
+.anwar-workspace .bg-blue-50,
+.anwar-workspace .bg-cyan-50,
+.anwar-workspace .bg-fuchsia-50 {
+  background-color: color-mix(in srgb, var(--anwar-gold) 10%, var(--anwar-surface)) !important;
+}
+
+.anwar-workspace .bg-emerald-50 {
+  background-color: color-mix(in srgb, var(--anwar-green) 20%, var(--anwar-surface)) !important;
+}
+
+.anwar-workspace .bg-amber-50,
+.anwar-workspace .bg-orange-50 {
+  background-color: color-mix(in srgb, var(--anwar-gold) 16%, var(--anwar-surface)) !important;
+}
+
+.anwar-workspace .bg-red-50 {
+  background-color: color-mix(in srgb, var(--anwar-red) 22%, var(--anwar-surface)) !important;
+}
+
+.anwar-workspace .border-slate-100,
+.anwar-workspace .border-slate-200,
+.anwar-workspace .border-slate-300,
+.anwar-workspace .border-blue-100,
+.anwar-workspace .border-blue-200,
+.anwar-workspace .border-blue-300,
+.anwar-workspace .border-cyan-200,
+.anwar-workspace .border-fuchsia-200 {
+  border-color: var(--anwar-divider) !important;
+}
+
+.anwar-workspace .border-emerald-200,
+.anwar-workspace .border-emerald-300 { border-color: color-mix(in srgb, var(--anwar-green) 55%, transparent) !important; }
+.anwar-workspace .border-amber-200,
+.anwar-workspace .border-orange-200 { border-color: color-mix(in srgb, var(--anwar-gold) 55%, transparent) !important; }
+.anwar-workspace .border-red-200,
+.anwar-workspace .border-red-300 { border-color: color-mix(in srgb, var(--anwar-red) 58%, transparent) !important; }
+
+.anwar-workspace .text-slate-950,
+.anwar-workspace .text-slate-900,
+.anwar-workspace .text-slate-800,
+.anwar-workspace .text-white { color: var(--anwar-text) !important; }
+
+.anwar-workspace .text-slate-700,
+.anwar-workspace .text-slate-600,
+.anwar-workspace .text-slate-500,
+.anwar-workspace .text-slate-400 { color: var(--anwar-muted) !important; }
+
+.anwar-workspace .text-blue-600,
+.anwar-workspace .text-blue-700,
+.anwar-workspace .text-cyan-600,
+.anwar-workspace .text-cyan-700,
+.anwar-workspace .text-cyan-800,
+.anwar-workspace .text-fuchsia-700 { color: var(--anwar-gold) !important; }
+
+.anwar-workspace .text-emerald-600,
+.anwar-workspace .text-emerald-700,
+.anwar-workspace .text-emerald-800 { color: #8dcc9a !important; }
+.anwar-workspace .text-amber-700,
+.anwar-workspace .text-amber-800,
+.anwar-workspace .text-orange-700 { color: #e8bc76 !important; }
+.anwar-workspace .text-red-700,
+.anwar-workspace .text-red-800 { color: #ef9b93 !important; }
+
+.anwar-workspace .bg-blue-600,
+.anwar-workspace .bg-fuchsia-600 { background-color: var(--anwar-gold) !important; color: #161311 !important; }
+.anwar-workspace .bg-emerald-600 { background-color: var(--anwar-green) !important; color: var(--anwar-text) !important; }
+.anwar-workspace .bg-slate-900 { background-color: var(--anwar-bg) !important; color: var(--anwar-text) !important; }
+
+.anwar-workspace input,
+.anwar-workspace select,
+.anwar-workspace textarea {
+  border-color: var(--anwar-divider) !important;
+  background-color: var(--anwar-bg) !important;
+  color: var(--anwar-text) !important;
+}
+
+.anwar-workspace input::placeholder,
+.anwar-workspace textarea::placeholder { color: var(--anwar-muted) !important; }
+
+.anwar-workspace button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--anwar-gold) 55%, transparent); }
+.anwar-workspace button:focus-visible,
+.anwar-workspace input:focus-visible,
+.anwar-workspace select:focus-visible,
+.anwar-workspace textarea:focus-visible {
+  outline: 2px solid var(--anwar-gold);
+  outline-offset: 2px;
+}
+
+/* Approved light civic shell. These final rules neutralize the former
+   brown/gold compatibility theme without changing feature markup. */
+.anwar-shell {
+  background:
+    radial-gradient(circle at 80% -10%, rgba(14, 165, 233, 0.1), transparent 30rem),
+    #f8fafc;
+}
+
+.anwar-sidebar {
+  border-right: 1px solid #dbe3ee;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 8px 0 30px rgba(15, 23, 42, 0.04);
+}
+
+.anwar-brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #eff6ff, #ecfeff);
+  color: var(--anwar-primary);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.12);
+}
+
+.anwar-kicker {
+  color: #0369a1;
+  font-weight: 800;
+}
+
+.anwar-nav-button {
+  border-radius: 10px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.anwar-nav-button:hover {
+  border-color: #dbeafe;
+  background: #f8fafc;
+  color: #1e40af;
+}
+
+.anwar-nav-button.is-active {
+  border-color: #bfdbfe;
+  background: linear-gradient(90deg, #eff6ff, #ecfeff);
+  color: #1d4ed8;
+  box-shadow: inset 3px 0 #2563eb, 0 6px 18px rgba(37, 99, 235, 0.08);
+}
+
+.anwar-topbar {
+  height: 64px;
+  border-color: #dbe3ee;
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  font-weight: 700;
+  backdrop-filter: blur(18px);
+}
+
+.anwar-engine {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.anwar-panel {
+  border-color: #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.anwar-page,
+.anwar-live-dispatch,
+.anwar-workspace {
+  background: transparent;
+  color: #0f172a;
+}
+
+.anwar-page .rounded-xl,
+.anwar-live-dispatch .rounded-xl {
+  border-radius: 12px;
+}
+
+.anwar-page .text-slate-700,
+.anwar-page .text-slate-600,
+.anwar-live-dispatch .text-slate-700,
+.anwar-live-dispatch .text-slate-600,
+.anwar-workspace .text-slate-700,
+.anwar-workspace .text-slate-600 {
+  color: #334155 !important;
+}
+
+.anwar-page .text-slate-500,
+.anwar-page .text-slate-400,
+.anwar-live-dispatch .text-slate-500,
+.anwar-live-dispatch .text-slate-400,
+.anwar-workspace .text-slate-500,
+.anwar-workspace .text-slate-400 {
+  color: #64748b !important;
+}
+
+.anwar-workspace .text-blue-600,
+.anwar-workspace .text-blue-700 {
+  color: #1d4ed8 !important;
+}
+
+.anwar-workspace .text-cyan-600,
+.anwar-workspace .text-cyan-700,
+.anwar-workspace .text-cyan-800 {
+  color: #0e7490 !important;
+}
+
+.anwar-workspace .text-emerald-600,
+.anwar-workspace .text-emerald-700,
+.anwar-workspace .text-emerald-800 {
+  color: #047857 !important;
+}
+
+.anwar-workspace .text-amber-700,
+.anwar-workspace .text-amber-800,
+.anwar-workspace .text-orange-700 {
+  color: #a16207 !important;
+}
+
+.anwar-workspace .text-red-700,
+.anwar-workspace .text-red-800 {
+  color: #b91c1c !important;
+}
+
+.anwar-page .bg-blue-600,
+.anwar-live-dispatch .bg-blue-600,
+.anwar-workspace .bg-blue-600,
+.anwar-workspace .bg-fuchsia-600 {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.anwar-page .text-white,
+.anwar-live-dispatch .text-white {
+  color: #ffffff !important;
+}
+
+.anwar-workspace .bg-emerald-600 {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+}
+
+.anwar-workspace .bg-slate-900 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.anwar-workspace .bg-slate-950 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.anwar-workspace .bg-slate-950 .text-white {
+  color: #ffffff !important;
+}
+
+.anwar-workspace input,
+.anwar-workspace select,
+.anwar-workspace textarea {
+  border-color: #cbd5e1 !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.anwar-workspace button:focus-visible,
+.anwar-workspace input:focus-visible,
+.anwar-workspace select:focus-visible,
+.anwar-workspace textarea:focus-visible {
+  outline-color: #2563eb;
+}
+
+.sf-shell .sf-panel .bg-blue-600.text-white,
+.sf-shell .sf-panel .bg-blue-700.text-white,
+.sf-shell .sf-panel .bg-red-600.text-white,
+.sf-shell .sf-panel .bg-amber-600.text-white,
+.sf-shell .sf-panel .bg-emerald-600.text-white {
+  color: #ffffff !important;
+}
+
+@media (max-width: 900px) {
+  .anwar-sidebar { width: 224px; }
+  .anwar-topbar { padding-inline: 16px; }
+}

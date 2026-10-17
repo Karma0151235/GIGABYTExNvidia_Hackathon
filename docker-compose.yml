@@ -1,0 +1,24 @@
+services:
+  anwar-postgres:
+    image: postgres:16-alpine
+    container_name: anwar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${ANWAR_POSTGRES_DB:-anwar}
+      POSTGRES_USER: ${ANWAR_POSTGRES_USER:-anwar}
+      POSTGRES_PASSWORD: ${ANWAR_POSTGRES_PASSWORD:-anwar_local_dev}
+    ports:
+      - "${ANWAR_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - anwar-postgres-data:/var/lib/postgresql/data
+      - ./backend/infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  anwar-postgres-data:
+    name: anwar-postgres-data
