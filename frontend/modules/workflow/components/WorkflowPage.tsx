@@ -14,8 +14,9 @@ import { seedFor } from "@/modules/workflow/lib/seed";
 import PatientPanel, { PRIORITY_TONE } from "@/modules/workflow/components/PatientPanel";
 import ResponderTab from "@/modules/workflow/components/ResponderTab";
 import HospitalTab from "@/modules/workflow/components/HospitalTab";
+import AuditTab from "@/modules/workflow/components/AuditTab";
 
-const TABS = ["Call Records", "Route", "First Responder", "Hospital"] as const;
+const TABS = ["Call Records", "Route", "First Responder", "Hospital", "Audit"] as const;
 const now = () => new Date().toISOString();
 
 export default function WorkflowPage() {
@@ -151,7 +152,8 @@ export default function WorkflowPage() {
 
       <nav role="tablist" className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-4">
         {TABS.map((label, index) => {
-          const done = reached(selected, STAGES[index]);
+          // Audit (index 4) is not a stage, so it never shows as done.
+          const done = index < STAGES.length && reached(selected, STAGES[index]);
           const active = state.tab === index;
           return (
             <button key={label} role="tab" aria-selected={active} type="button" onClick={() => setTab(index as Tab)} className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold ${active ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>
@@ -199,6 +201,7 @@ export default function WorkflowPage() {
             </div>,
             <ResponderTab key="responder" item={selected} dispatch={dispatch} />,
             <HospitalTab key="hospital" item={selected} snapshot={snapshot} dispatch={dispatch} />,
+            <AuditTab key="audit" cases={state.order.map((id) => state.cases[id])} selected={selected} />,
           ].map((pane, index) => (
             <div key={index} role="tabpanel" aria-hidden={state.tab !== index} className={`absolute inset-0 ${state.tab === index ? "" : "invisible pointer-events-none"}`}>{pane}</div>
           ))}
