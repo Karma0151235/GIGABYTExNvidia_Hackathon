@@ -21,9 +21,11 @@ async def health():
 async def draft_report(payload: schemas.ReportRequest):
     try:
         return await run_in_threadpool(report_module.generate_draft, payload)
-    except report_module.InvalidImage as exc:
+    except (report_module.InvalidImage, report_module.InvalidVideo) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except report_module.VLMUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except report_module.VLMRejected as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except report_module.InvalidVLMResponse as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

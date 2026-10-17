@@ -14,6 +14,12 @@ class ResponderImage(BaseModel):
     caption: str | None = Field(default=None, max_length=300)
 
 
+class ResponderVideo(BaseModel):
+    video_id: str = Field(min_length=1, max_length=80)
+    media_type: Literal["video/mp4"]
+    data_base64: str = Field(min_length=16, max_length=28_000_000)
+
+
 class IncidentGeolocation(BaseModel):
     locality: str | None = Field(default=None, max_length=250)
     address: str | None = Field(default=None, max_length=500)
@@ -41,11 +47,19 @@ class ReportRequest(BaseModel):
     receiving_facility_id: str | None = Field(default=None, max_length=80)
     receiving_facility_name: str | None = Field(default=None, max_length=200)
     hospital_eta_minutes: float | None = Field(default=None, ge=0, le=1440)
-    images: list[ResponderImage] = Field(min_length=1, max_length=4)
+    images: list[ResponderImage] = Field(default_factory=list, max_length=4)
+    video: ResponderVideo | None = None
+    video_frames: list[ResponderImage] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
     def unique_image_ids(self):
-        ids = [image.image_id for image in self.images]
+        if not self.images and self.video is None:
+            raise ValueError("provide images or a video")
+        if self.images and self.video is not None:
+            raise ValueError("provide images or a video, not both")
+        if self.video_frames and self.video is None:
+            raise ValueError("video_frames require a video")
+        ids = [image.image_id for image in [*self.images, *self.video_frames]]
         if len(ids) != len(set(ids)):
             raise ValueError("image_id values must be unique")
         return self
@@ -80,6 +94,9 @@ class DraftReport(BaseModel):
     responder_notes: str | None
     image_evidence: list[ImageEvidence]
     image_notes: list[ImageTriageNote]
+    video_note: str | None = None
+    video_sha256: str | None = None
+    video_method: Literal["native", "frames"] | None = None
     model: str
     generated_at: datetime
     limitations: list[str]

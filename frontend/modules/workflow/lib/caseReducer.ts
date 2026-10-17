@@ -52,9 +52,9 @@ export type Action =
 
 export const initialState: State = { cases: {}, order: [], tab: 0 };
 
-/** "TRIAGE: CRITICAL" line plus its one-line reason from the first ER triage note. */
+/** "TRIAGE: CRITICAL" line plus its reason from the VLM's visual note. */
 export function photoTriage(draft: DraftReport): { level: string; reason: string } {
-  const lines = draft.image_notes[0]?.note.split("\n") ?? [];
+  const lines = (draft.video_note ?? draft.image_notes[0]?.note)?.split("\n") ?? [];
   const index = lines.findIndex((line) => line.startsWith("TRIAGE: "));
   return index < 0 ? { level: "CANNOT DETERMINE", reason: "" } : { level: lines[index].slice(8).trim(), reason: (lines[index + 1] ?? "").trim() };
 }
@@ -122,7 +122,7 @@ export function reducer(state: State, action: Action): State {
     case "photoAdded":
       return put({ ...item, photos: [...item.photos, action.dataUrl].slice(-4) });
     case "vlmDraftReady":
-      return put({ ...item, vlmDraft: action.draft, timeline: [...item.timeline, { at: action.at, stage: "on_scene", label: `Photo triage: ${photoTriage(action.draft).level}`, detail: photoTriage(action.draft).reason }] });
+      return put({ ...item, vlmDraft: action.draft, timeline: [...item.timeline, { at: action.at, stage: "on_scene", label: `VLM triage: ${photoTriage(action.draft).level}`, detail: photoTriage(action.draft).reason }] });
     case "admit":
       if (!reached(item, "on_scene") || reached(item, "admitted")) return state;
       return put({ ...advance(item, "admitted", [{ at: action.at, stage: "admitted", label: `Admitted: ${action.hospitalName}`, detail: `Ward ${item.seed.hospital.ward}${item.seed.hospital.bed ? `, bed ${item.seed.hospital.bed}` : ""}` }]), hospitalName: action.hospitalName });
@@ -144,7 +144,7 @@ export function agentPayload(item: Case) {
     patient: { age: identity.age, sex: identity.sex, allergies: identity.allergies, conditions: identity.conditions },
     route: item.route ?? null,
     responder: reached(item, "on_scene") ? responder : null,
-    photoFindings: item.vlmDraft?.image_notes.map((entry) => entry.note) ?? null,
+    photoFindings: item.vlmDraft ? [item.vlmDraft.video_note, ...item.vlmDraft.image_notes.map((entry) => entry.note)].filter((note): note is string => Boolean(note)) : null,
     hospital: reached(item, "admitted") ? { ...hospital, facilityName: item.hospitalName } : null,
     timeline: item.timeline.map((event) => event.label),
   };
