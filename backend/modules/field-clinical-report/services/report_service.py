@@ -191,6 +191,7 @@ def generate_draft(request, *, client=None) -> dict:
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": content}],
                 max_tokens=int(os.getenv("DGX_VLM_MAX_TOKENS", "4096")),
                 temperature=0,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
             answer = completion.choices[0].message.content
         except Exception as exc:

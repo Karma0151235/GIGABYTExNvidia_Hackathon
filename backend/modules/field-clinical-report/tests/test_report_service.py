@@ -87,6 +87,7 @@ def test_dgx_omni_request_carries_context_and_image_evidence(monkeypatch):
     assert len(report["image_evidence"][0]["sha256"]) == 64
     request = client.requests[0]
     assert request["model"] == "omni"
+    assert request["extra_body"] == {"chat_template_kwargs": {"enable_thinking": False}}
     assert request["messages"][0]["content"] == service.SYSTEM_PROMPT
     assert "ER TRIAGE NOTE (TEST OUTPUT ONLY)" in service.SYSTEM_PROMPT
     assert "A single image cannot reliably show breathing or responsiveness." in service.SYSTEM_PROMPT
@@ -150,6 +151,7 @@ def test_http_draft_route_sends_openai_compatible_multimodal_request(monkeypatch
         assert request.url.path == "/v1/chat/completions"
         payload = json.loads(request.content)
         assert payload["model"] == "omni"
+        assert payload["chat_template_kwargs"] == {"enable_thinking": False}
         assert payload["messages"][0]["content"] == service.SYSTEM_PROMPT
         assert payload["messages"][1]["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
         return httpx.Response(200, json={
