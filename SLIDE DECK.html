@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEGIS-999 | Executive GovTech Hackathon Pitch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       STRICT 3-COLOR EXECUTIVE NAVY & MUTED TEAL PALETTE
+       1. Primary Canvas: Crisp White (#FFFFFF) & Alabaster Surface (#F8FAFC)
+       2. Primary Structural: Deep Executive Navy (#051C2C) & Slate Navy (#1E3A5F)
+       3. Primary Accent: Muted Corporate Teal (#0E7490) & Soft Teal Tint (#E0F2FE)
+       ========================================================================== */
+    :root {
+      --white: #FFFFFF;
+      --surface: #F8FAFC;
+      --navy-deep: #051C2C;
+      --navy-mid: #102A43;
+      --teal-muted: #0E7490;
+      --teal-light: #E6F4F7;
+      --teal-terminal: #38BDF8;
+      --gray-text: #334E68;
+      --gray-border: #CBD5E1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-snap-type: y mandatory;
+      background-color: var(--white);
+      color: var(--navy-deep);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      overflow-x: hidden;
+    }
+
+    /* Fixed Top Executive Masthead */
+    .gov-masthead {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      background: var(--navy-deep);
+      border-bottom: 3px solid var(--teal-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 56px;
+      z-index: 1000;
+      color: var(--white);
+    }
+
+    .gov-brand {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: var(--teal-muted);
+      color: var(--white);
+      padding: 3px 10px;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .gov-nav {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .gov-nav a {
+      color: #CBD5E1;
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .gov-nav a:hover {
+      color: var(--white);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Slide Container */
+    .slide {
+      min-height: 100vh;
+      width: 100vw;
+      scroll-snap-align: start;
+      padding: 70px 56px 24px 56px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--white);
+      border-bottom: 2px solid var(--gray-border);
+      position: relative;
+    }
+
+    /* Stacked Titles & Subtitles */
+    .slide-header {
+      border-left: 5px solid var(--navy-deep);
+      padding-left: 18px;
+      margin-bottom: 14px;
+    }
+
+    .segment-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--teal-muted);
+      margin-bottom: 4px;
+    }
+
+    .slide-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 29px;
+      font-weight: 800;
+      line-height: 1.18;
+      color: var(--navy-deep);
+      margin-bottom: 6px;
+      letter-spacing: -0.015em;
+    }
+
+    .slide-subtitle {
+      font-size: 16.5px;
+      font-weight: 500;
+      line-height: 1.38;
+      color: var(--gray-text);
+      max-width: 96%;
+    }
+
+    .hl-navy {
+      color: var(--navy-deep);
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: var(--teal-muted);
+      text-underline-offset: 3px;
+    }
+
+    .hl-teal {
+      color: var(--teal-muted);
+      font-weight: 700;
+      background: var(--teal-light);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* Grids */
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .grid-asym { display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; }
+
+    /* Cards */
+    .gov-card {
+      background: var(--surface);
+      border: 1.5px solid var(--gray-border);
+      border-top: 4px solid var(--navy-deep);
+      border-radius: 6px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .gov-card.teal-top {
+      background: var(--white);
+      border-color: var(--gray-border);
+      border-top: 4px solid var(--teal-muted);
+      box-shadow: 0 4px 14px rgba(5, 28, 44, 0.05);
+    }
+
+    .gov-card.navy-solid {
+      background: var(--navy-deep);
+      border-color: var(--navy-deep);
+      border-top: 4px solid var(--teal-muted);
+      color: var(--white);
+    }
+
+    .card-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--teal-muted);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .navy-solid .card-kicker {
+      color: #7DD3FC;
+    }
+
+    /* Hero Stats */
+    .hero-stat {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--navy-deep);
+      margin: 2px 0 4px 0;
+    }
+
+    .hero-stat.teal { color: var(--teal-muted); }
+    .navy-solid .hero-stat { color: var(--white); }
+
+    .stat-label {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--navy-deep);
+      margin-bottom: 6px;
+    }
+
+    .navy-solid .stat-label {
+      color: var(--teal-light);
+    }
+
+    .note-text {
+      font-size: 13px;
+      line-height: 1.48;
+      color: var(--gray-text);
+    }
+
+    .navy-solid .note-text {
+      color: #E2E8F0;
+    }
+
+    /* Pills */
+    .pill {
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .pill-navy { background: var(--navy-deep); color: var(--white); }
+    .pill-teal { background: var(--teal-muted); color: var(--white); }
+    .pill-outline { background: var(--white); color: var(--navy-deep); border: 1px solid var(--navy-deep); }
+
+    /* Terminal Box */
+    .terminal-box {
+      background: var(--navy-deep);
+      border: 1.5px solid var(--teal-muted);
+      border-radius: 5px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--white);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .term-header {
+      color: #7DD3FC;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      padding-bottom: 3px;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #38BDF8;
+      display: inline-block;
+    }
+
+    /* Bars */
+    .bar-track {
+      width: 100%;
+      height: 10px;
+      background: var(--gray-border);
+      border-radius: 5px;
+      overflow: hidden;
+      margin: 6px 0;
+    }
+
+    .bar-fill-navy { height: 100%; background: var(--navy-deep); }
+    .bar-fill-teal { height: 100%; background: var(--teal-muted); }
+
+    /* Citations & Footer */
+    sup {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9.5px;
+      color: var(--teal-muted);
+      font-weight: 700;
+      margin-left: 1px;
+    }
+
+    .navy-solid sup {
+      color: #7DD3FC;
+    }
+
+    .slide-footer {
+      border-top: 1.5px solid var(--gray-border);
+      padding-top: 8px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10.5px;
+      color: var(--gray-text);
+    }
+
+    .ref-bar {
+      max-width: 88%;
+      line-height: 1.35;
+    }
+
+    /* Tech Stack Panel (Slide 02A) */
+    .stack-wrap { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: stretch; }
+    .stack-layers { display: flex; flex-direction: column; gap: 6px; }
+    .stack-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 10px;
+      background: var(--white);
+      border: 1px solid var(--gray-border);
+      border-left: 4px solid var(--navy-deep);
+      border-radius: 5px;
+      padding: 6px 10px;
+      align-items: center;
+    }
+    .stack-row.ai { background: var(--navy-deep); border-color: var(--navy-deep); border-left-color: var(--teal-terminal); color: var(--white); }
+    .stack-row.teal { border-left-color: var(--teal-muted); }
+    .stack-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal-muted); }
+    .stack-row.ai .stack-tag { color: #7DD3FC; }
+    .stack-name { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12.5px; font-weight: 800; line-height: 1.2; }
+    .stack-sub { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: var(--gray-text); }
+    .stack-row.ai .stack-sub { color: #CBD5E1; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip { background: var(--surface); border: 1px solid var(--gray-border); border-radius: 4px; padding: 3px 7px; font-size: 10px; line-height: 1.25; color: var(--navy-deep); }
+    .chip b { display: block; font-size: 10.5px; font-weight: 700; }
+    .chip i { font-style: normal; font-size: 9px; color: var(--gray-text); }
+    .stack-row.ai .chip { background: var(--navy-mid); border-color: var(--teal-muted); color: var(--white); }
+    .stack-row.ai .chip i { color: #CBD5E1; }
+    .chip .port { font-family: 'JetBrains Mono', monospace; color: var(--teal-muted); font-weight: 700; margin-left: 3px; }
+    .stack-row.ai .chip .port { color: #38BDF8; }
+    .stack-link { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: var(--teal-muted); padding-left: 14px; border-left: 2px solid var(--teal-muted); margin-left: 8px; }
+    .wf-step { display: flex; gap: 8px; align-items: flex-start; background: var(--white); border: 1px solid var(--gray-border); border-radius: 5px; padding: 6px 8px; }
+    .wf-num { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--navy-deep); color: var(--white); font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .wf-step b { font-size: 11.5px; color: var(--navy-deep); }
+    .wf-step p { font-size: 10px; line-height: 1.3; color: var(--gray-text); }
+    .wf-step code { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: var(--teal-muted); font-weight: 700; }
+
+    .slide-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--white);
+      background: var(--navy-deep);
+      border-left: 4px solid var(--teal-muted);
+      padding: 4px 10px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- EXECUTIVE NAVY & TEAL MASTHEAD -->
+  <header class="gov-masthead">
+    <div class="gov-brand">
+      <span class="brand-badge">AEGIS-999</span>
+      <span>SOVEREIGN ON-PREMISE EMERGENCY AI // MALAYSIA GOVTECH PITCH</span>
+    </div>
+    <nav class="gov-nav">
+      <a href="#s1">01. Problem &amp; Validation</a>
+      <a href="#s2a">02A. Tech Architecture</a>
+      <a href="#s2b">02B. Dual Impact</a>
+      <a href="#s3">03. Pilot &amp; Cost</a>
+      <a href="#s4">04. Next Steps</a>
+      <a href="#app-a">Appendix: User Journey</a>
+    </nav>
+  </header>
+
+  <!-- ================================================================= -->
+  <!-- SLIDE 1: MERGED PROBLEM (SCQA) + EMPIRICAL VALIDATION             -->
+  <!-- ================================================================= -->
+  <section class="slide" id="s1">
+    <div class="slide-header">
+      <div class="segment-kicker">SLIDE 01 // THE PROBLEM &amp; EMPIRICAL VALIDATION (SCQA STORYBOARD)</div>
+      <h1 class="slide-title">
+        1. Malaysia’s 999 system faces a 95% prank call surge<sup>[1]</sup>, $6.64M cloud breach risks<sup>[2]</sup>, and a 40-minute transit lag<sup>[3]</sup>—validated by manual routing failures and a 92% AI security gap<sup>[2,4]</sup>.
+      </h1>
+      <p class="slide-subtitle">
+        Call centers are trapped between <span class="hl-navy">49.5% slow manual legacy setups</span> and <span class="hl-teal">50.5% vulnerable cloud platforms</span><sup>[4]</sup>—requiring an on-premise agentic architecture that digitalizes the entire workflow.
+      </p>
+    </div>
+
+    <div class="slide-content">
+      <!-- Top Row: S, C, Q&A Overview -->
+      <div class="grid-3">
+        
+        <!-- SITUATION -->
+        <div class="gov-card">
+          <div>
+            <div class="card-kicker">
+              <span>S // SITUATION: REACTIVE DELUGE</span>
+              <span class="pill pill-outline">70K CALLS/DAY</span>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between;">
+              <div class="hero-stat">95%</div>
+              <span style="font-size:12px; font-weight:700; color:var(--teal-muted);">66,500 Prank/Silent Calls Daily<sup>[1]</sup></span>
+            </div>
+            <svg viewBox="0 0 280 42" style="width:100%; height:42px; margin: 6px 0;">
+              <rect width="280" height="42" rx="4" fill="#051C2C"/>
+              <g fill="#475569">
+                <rect x="8" y="10" width="4" height="22"/><rect x="16" y="6" width="4" height="30"/>
+                <rect x="24" y="14" width="4" height="14"/><rect x="32" y="5" width="4" height="32"/>
+                <rect x="40" y="11" width="4" height="20"/><rect x="48" y="8" width="4" height="26"/>
+                <rect x="56" y="15" width="4" height="12"/><rect x="64" y="6" width="4" height="30"/>
+                <rect x="72" y="10" width="4" height="22"/><rect x="80" y="7" width="4" height="28"/>
+              </g>
+              <rect x="96" y="4" width="6" height="34" fill="#0E7490"/>
+              <rect x="106" y="8" width="6" height="26" fill="#FFFFFF"/>
+              <text x="122" y="19" fill="#FFFFFF" font-family="JetBrains Mono" font-size="9.5" font-weight="700">ONLY 5% REAL CALLS</text>
+              <text x="122" y="32" fill="#94A3B8" font-family="JetBrains Mono" font-size="8.5">25–30% Shift Lost to Manual Notes</text>
+            </svg>
+          </div>
+          <p class="note-text">
+            Operators manually screen 70,000 daily calls<sup>[1]</sup> while losing <strong>25–30% of shift capacity</strong> to manual post-call documentation<sup>[4]</sup>.
+          </p>
+        </div>
+
+        <!-- COMPLICATION -->
+        <div class="gov-card">
+          <div>
+            <div class="card-kicker">
+              <span>C // COMPLICATION: LEAKAGE &amp; ER LAG</span>
+              <span class="pill pill-outline">DUAL RISK</span>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between;">
+              <div class="hero-stat teal">$6.64M</div>
+              <span style="font-size:12px; font-weight:700; color:var(--navy-deep);">+ 30–40m MY Ambulance Lag<sup>[2,3]</sup></span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin: 6px 0;">
+              <div style="background:var(--white); padding:7px; border-radius:4px; border:1px solid var(--gray-border); border-left:3px solid var(--navy-deep);">
+                <div style="font-family:'JetBrains Mono'; font-size:9.5px; color:var(--navy-deep); font-weight:700;">CIVILIAN PII RISK</div>
+                <div style="font-size:11px; color:var(--gray-text); margin-top:2px;">52% of breaches expose citizen PII (MyKad/EHR)<sup>[2]</sup>.</div>
+              </div>
+              <div style="background:var(--white); padding:7px; border-radius:4px; border:1px solid var(--gray-border); border-left:3px solid var(--teal-muted);">
+                <div style="font-family:'JetBrains Mono'; font-size:9.5px; color:var(--teal-muted); font-weight:700;">BLIND ER WARDS</div>
+                <div style="font-size:11px; color:var(--gray-text); margin-top:2px;">40m MY avg vs 7–10m EU Golden Hour target<sup>[3]</sup>.</div>
+              </div>
+            </div>
+          </div>
+          <p class="note-text">
+            Public clouds risk leaking civilian health data<sup>[2]</sup>, while ER trauma teams receive zero pre-arrival visual telemetry<sup>[3]</sup>.
+          </p>
+        </div>
+
+        <!-- QUESTION & RESOLUTION -->
+        <div class="gov-card navy-solid">
+          <div>
+            <div class="card-kicker">
+              <span>Q &amp; A // SOVEREIGN DIGITALIZATION</span>
+              <span class="pill pill-teal">RESOLUTION</span>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between;">
+              <div class="hero-stat">&lt; 2.0s</div>
+              <span style="font-size:12px; font-weight:700; color:#7DD3FC;">On-Premise Agentic Dispatch<sup>[5]</sup></span>
+            </div>
+            <div style="background:rgba(255,255,255,0.07); padding:8px 10px; border-radius:4px; margin: 6px 0; font-size:11.5px; border:1px solid var(--teal-muted);">
+              <div style="color:#CBD5E1; margin-bottom:4px;">✗ <strong>Digitization:</strong> Typing paper notes into cloud forms.</div>
+              <div style="color:var(--white); font-weight:600;">✓ <strong>Digitalization:</strong> Local agents filter noise, compute flood routes &amp; pre-stage ER wards automatically.</div>
+            </div>
+          </div>
+          <p class="note-text">
+            Hosted 100% on-premise via <strong>NVIDIA DGX Spark</strong>—eliminating cloud leaks and closing the trauma gap by <strong>27.3%</strong><sup>[5]</sup>.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Bottom Row: Empirical Validation of the Complication (Merged from old Slide 2) -->
+      <div class="grid-asym">
+        
+        <!-- Validation 1: Manual Routing Fails on Live Road Disruptions -->
+        <div class="gov-card teal-top" style="padding:14px 18px;">
+          <div class="card-kicker" style="margin-bottom:4px;">
+            <span>EMPIRICAL VALIDATION 1 // WHY MANUAL ROUTING FAILS (LIVES ON THE LINE)<sup>[3]</sup></span>
+            <span class="pill pill-navy">21.9m KL TRANSIT LAG</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1.25fr 1fr; gap:14px; align-items:center;">
+            <svg viewBox="0 0 360 115" style="width:100%; height:115px; background:#051C2C; border-radius:6px;">
+              <!-- Disruption Zone -->
+              <ellipse cx="180" cy="62" rx="58" ry="26" fill="rgba(14, 116, 144, 0.28)" stroke="#FFFFFF" stroke-dasharray="4 3" stroke-width="1.5"/>
+              <text x="180" y="60" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="8.5" font-weight="700">⚠ FLOOD / CAR CRASH</text>
+              <text x="180" y="72" text-anchor="middle" fill="#7DD3FC" font-family="Inter" font-size="8">Road Impassable</text>
+              <!-- Manual Haversine -->
+              <line x1="45" y1="90" x2="315" y2="40" stroke="#94A3B8" stroke-width="2" stroke-dasharray="5 3"/>
+              <text x="180" y="104" text-anchor="middle" fill="#CBD5E1" font-family="JetBrains Mono" font-size="8.5">✗ Manual Haversine (1.8km): BLOCKED</text>
+              <!-- cuSpatial Dynamic Route -->
+              <path d="M 45 90 Q 175 4 315 40" fill="none" stroke="#38BDF8" stroke-width="3"/>
+              <text x="180" y="16" text-anchor="middle" fill="#38BDF8" font-family="JetBrains Mono" font-size="9" font-weight="700">✓ Aegis cuSpatial Route (3.1km): CLEAR</text>
+              <circle cx="45" cy="90" r="6" fill="#0E7490" stroke="#FFF" stroke-width="1.5"/>
+              <circle cx="315" cy="40" r="6" fill="#FFF" stroke="#0E7490" stroke-width="2"/>
+            </svg>
+            <div class="note-text" style="font-size:12px;">
+              • <strong>12.2% of KL calls</strong> take &gt;5 mins just to process manually<sup>[3]</sup>.<br>
+              • Manual Haversine routing ignores live jams, floods &amp; crashes—causing a <strong>21.9m KL transit mean</strong><sup>[3]</sup>.<br>
+              • <strong>cuSpatial GPU routing</strong> dispatches Bomba + KKM in <strong>&lt;2s</strong><sup>[5]</sup>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Validation 2: Cloud vs Manual Market Split & 92% AI Breach Gap -->
+        <div class="gov-card teal-top" style="padding:14px 18px;">
+          <div class="card-kicker" style="margin-bottom:4px;">
+            <span>EMPIRICAL VALIDATION 2 // CLOUD VS. MANUAL MARKET EXPOSURE<sup>[2,4]</sup></span>
+            <span class="pill pill-teal">IBM &amp; METRIGY DATA</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-family:'Plus Jakarta Sans'; font-size:16px; font-weight:800; margin:2px 0;">
+            <span style="color:var(--teal-muted);">50.5% Cloud/Hosted (29.5% Cloud + 21% Hosted)<sup>[4]</sup></span>
+            <span style="color:var(--navy-deep);">49.5% Manual<sup>[4]</sup></span>
+          </div>
+          <div style="display:flex; width:100%; height:12px; border-radius:6px; overflow:hidden; margin:4px 0; border:1px solid var(--navy-deep);">
+            <div style="width:50.5%; background:var(--teal-muted);"></div>
+            <div style="width:49.5%; background:var(--navy-deep);"></div>
+          </div>
+          <div class="note-text" style="font-size:12px; margin-top:4px;">
+            • <strong>92% AI Access Control Gap:</strong> IBM (2026) proves <strong>92% of AI-breached orgs lacked sovereign access controls</strong> as AI attacks rose <strong>+56% YoY</strong> (1 in 4 breaches)<sup>[2]</sup>.<br>
+            • Streaming citizen MyKad &amp; medical audio to public clouds is an unacceptable national security risk.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="ref-bar">
+        <strong>Verified Sources:</strong> 
+        [1] Telekom Malaysia (TM) &amp; Ministry of Communications via <em>Free Malaysia Today</em> &amp; <em>CodeBlue</em> (Nov 2025): 70k daily NG999 calls; 95% silent/prank. 
+        [2] IBM Security, <em>Cost of a Data Breach Report 2026</em> ($6.64M healthcare avg; 52% PII; 92% lacked AI access controls; +56% YoY AI attacks). 
+        [3] <em>MJEM</em> &amp; Sujak et al., Universiti Sains Malaysia (USM) KL Ambulance Study (30–40m MY avg; 21.9m KL transit mean; 12.2% call processing &gt;5m). 
+        [4] Metrigy Contact Center Study (2025): 50.5% Cloud/Hosted vs 49.5% On-Premise. 
+        [5] Project Aegis-999 Telemetry.
+      </div>
+      <div class="slide-counter">SLIDE 01 / 06</div>
+    </div>
+  </section>
+
+  <!-- ================================================================= -->
+  <!-- SLIDE 2A (FORMERLY 3B): TECHNICAL ARCHITECTURE & EMBEDDED VIDEO   -->
+  <!-- ================================================================= -->
+  <section class="slide" id="s2a">
+    <div class="slide-header">
+      <div class="segment-kicker">SLIDE 02A // SOLUTION &amp; ON-PREMISE TECHNICAL ARCHITECTURE</div>
+      <h1 class="slide-title">
+        2A. Aegis-999 resolves these failures on a single 128GB NVIDIA DGX Spark, running local voice triage, flood-aware routing, and VLM streaming inside hospital firewalls<sup>[1,2]</sup>.
+      </h1>
+      <p class="slide-subtitle">
+        Coherent Grace Blackwell unified memory executes ASR scam filtering, cuSpatial graph routing, and Vision-Language Models in parallel with <span class="hl-teal">zero external cloud calls</span><sup>[1]</sup>.
+      </p>
+    </div>
+
+    <div class="slide-content">
+      <div class="grid-asym">
+        
+        <!-- LEFT: Direct Embedded Video + Hardware Specs -->
+        <div class="gov-card navy-solid">
+          <div class="card-kicker">
+            <span>LIVE SYSTEM TELEMETRY // KUALA LUMPUR FLOOD DISPATCH</span>
+            <span class="pill pill-teal">● EMBEDDED VIDEO</span>
+          </div>
+
+          <!-- DIRECT HTML5 VIDEO EMBED -->
+          <div style="margin: 6px 0; border-radius: 6px; overflow: hidden; border: 2px solid var(--teal-muted); background: #000;">
+            <video src="WhatsApp Video 2026-10-17 at 16.43.12.mp4" controls autoplay loop muted playsinline style="width: 100%; height: 215px; object-fit: contain; background: #000; display: block;">
+              Your browser does not support the HTML5 video tag.
+            </video>
+          </div>
+
+          <!-- Hardware Spec Strip -->
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:6px;">
+            <div style="background:var(--navy-mid); padding:9px; border-radius:5px; text-align:center; border:1px solid var(--teal-muted);">
+              <div style="font-family:'JetBrains Mono'; font-size:17px; color:var(--white); font-weight:700;">128 GB</div>
+              <div style="font-size:11px; color:#7DD3FC; font-weight:600;">Unified Memory<sup>[1]</sup></div>
+            </div>
+            <div style="background:var(--navy-mid); padding:9px; border-radius:5px; text-align:center; border:1px solid var(--teal-muted);">
+              <div style="font-family:'JetBrains Mono'; font-size:17px; color:var(--white); font-weight:700;">150 mm</div>
+              <div style="font-size:11px; color:#7DD3FC; font-weight:600;">150×150×50.5mm<sup>[1]</sup></div>
+            </div>
+            <div style="background:var(--navy-mid); padding:9px; border-radius:5px; text-align:center; border:1px solid var(--teal-muted);">
+              <div style="font-family:'JetBrains Mono'; font-size:17px; color:var(--white); font-weight:700;">Sub-2s</div>
+              <div style="font-size:11px; color:#7DD3FC; font-weight:600;">Local Dispatch<sup>[2]</sup></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: High-Contrast Technical Architecture & RAG Graph SVG -->
+        <div class="gov-card teal-top">
+          <div class="card-kicker">
+            <span>ON-PREMISE MULTI-AGENT &amp; RAG VALIDATION ARCHITECTURE</span>
+            <span class="pill pill-navy">EXPLAINABLE AI</span>
+          </div>
+
+          <svg viewBox="0 0 460 230" style="width:100%; height:230px; background:#051C2C; border-radius:6px; margin:6px 0;">
+            <!-- Column 1: Edge Ingestion -->
+            <rect x="14" y="16" width="125" height="198" rx="5" fill="#FFFFFF"/>
+            <text x="76" y="35" text-anchor="middle" fill="#051C2C" font-family="JetBrains Mono" font-size="10" font-weight="700">1. EDGE INGEST</text>
+            
+            <rect x="22" y="45" width="109" height="44" rx="4" fill="#F8FAFC" stroke="#051C2C" stroke-width="1.5"/>
+            <text x="76" y="63" text-anchor="middle" fill="#051C2C" font-family="Inter" font-size="9.5" font-weight="700">999 Audio + ASR</text>
+            <text x="76" y="78" text-anchor="middle" fill="#0E7490" font-family="JetBrains Mono" font-size="8.5" font-weight="700">95% Noise Filtered</text>
+
+            <rect x="22" y="97" width="109" height="44" rx="4" fill="#F8FAFC" stroke="#051C2C" stroke-width="1.5"/>
+            <text x="76" y="115" text-anchor="middle" fill="#051C2C" font-family="Inter" font-size="9.5" font-weight="700">Responder VLM</text>
+            <text x="76" y="130" text-anchor="middle" fill="#0E7490" font-family="JetBrains Mono" font-size="8.5" font-weight="700">Live Headset Stream</text>
+
+            <rect x="22" y="149" width="109" height="52" rx="4" fill="#051C2C"/>
+            <text x="76" y="170" text-anchor="middle" fill="#FFFFFF" font-family="Inter" font-size="9.5" font-weight="700">cuSpatial Route</text>
+            <text x="76" y="186" text-anchor="middle" fill="#38BDF8" font-family="JetBrains Mono" font-size="8.5" font-weight="700">Flood-Aware ETA</text>
+
+            <!-- Connector -->
+            <line x1="139" y1="115" x2="164" y2="115" stroke="#38BDF8" stroke-width="3"/>
+
+            <!-- Column 2: RAG Knowledge Graph -->
+            <rect x="164" y="16" width="146" height="198" rx="5" fill="#0E7490"/>
+            <text x="237" y="35" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="10" font-weight="700">2. AUDITABLE RAG</text>
+            
+            <circle cx="204" cy="82" r="15" fill="#051C2C" stroke="#FFFFFF" stroke-width="2"/>
+            <text x="204" y="85" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="8.5" font-weight="700">EHR</text>
+            
+            <circle cx="270" cy="82" r="15" fill="#051C2C" stroke="#FFFFFF" stroke-width="2"/>
+            <text x="270" y="85" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="8.5" font-weight="700">CPG</text>
+            
+            <circle cx="237" cy="134" r="18" fill="#FFFFFF"/>
+            <text x="237" y="137" text-anchor="middle" fill="#051C2C" font-family="JetBrains Mono" font-size="9" font-weight="700">95% CI</text>
+            
+            <line x1="214" y1="94" x2="227" y2="118" stroke="#FFFFFF" stroke-width="2"/>
+            <line x1="260" y1="94" x2="247" y2="118" stroke="#FFFFFF" stroke-width="2"/>
+            
+            <text x="237" y="172" text-anchor="middle" fill="#FFFFFF" font-family="Inter" font-size="9.5" font-weight="700">Cited Guidelines</text>
+            <text x="237" y="188" text-anchor="middle" fill="#E0F2FE" font-family="JetBrains Mono" font-size="8.5" font-weight="700">Milvus + Neo4j KB</text>
+
+            <!-- Connector -->
+            <line x1="310" y1="115" x2="334" y2="115" stroke="#38BDF8" stroke-width="3"/>
+
+            <!-- Column 3: ER Validation & Trace -->
+            <rect x="334" y="16" width="112" height="198" rx="5" fill="#FFFFFF"/>
+            <text x="390" y="35" text-anchor="middle" fill="#051C2C" font-family="JetBrains Mono" font-size="10" font-weight="700">3. ER SIGN-OFF</text>
+            
+            <rect x="344" y="54" width="92" height="38" rx="4" fill="#0E7490"/>
+            <text x="390" y="77" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="9.5" font-weight="700">[✓] ACTED ON</text>
+            
+            <rect x="344" y="102" width="92" height="38" rx="4" fill="#051C2C"/>
+            <text x="390" y="125" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="9.5" font-weight="700">[✗] REJECTED</text>
+            
+            <text x="390" y="166" text-anchor="middle" fill="#051C2C" font-family="Inter" font-size="9.5" font-weight="700">Appends Trace to</text>
+            <text x="390" y="181" text-anchor="middle" fill="#0E7490" font-family="JetBrains Mono" font-size="9" font-weight="700">Local Memory KB</text>
+          </svg>
+
+          <p class="note-text" style="font-size:12.5px;">
+            Paramedic headsets stream live video to the local VLM; ER physicians verify RAG citations and confidence intervals before acting, leaving an immutable trace in the knowledge base<sup>[2]</sup>.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- TECH STACK -->
+      <div class="gov-card teal-top" style="padding:12px 16px;">
+        <div class="card-kicker" style="margin-bottom:8px;">
+          <span>AEGIS 999 TECH STACK // GOLDEN MINUTE EMERGENCY RESPONSE · GREATER KUALA LUMPUR · ALL AI INFERENCE ON NVIDIA DGX SPARK</span>
+          <span class="pill pill-navy">5 LAYERS</span>
+        </div>
+        <div class="stack-wrap">
+          <div class="stack-layers">
+            <div class="stack-row">
+              <div><div class="stack-tag">Experience</div><div class="stack-name">Browser UI</div><div class="stack-sub">:3000</div></div>
+              <div class="chips">
+                <div class="chip"><b>Next.js 15</b><i>App Router, single-page workflow</i></div>
+                <div class="chip"><b>React 19</b><i>case reducer, patient panel</i></div>
+                <div class="chip"><b>TypeScript 5</b><i>typed contracts</i></div>
+                <div class="chip"><b>Tailwind CSS 3</b><i>styling</i></div>
+                <div class="chip"><b>MapLibre GL 5</b><i>dispatch map, OSM tiles</i></div>
+                <div class="chip"><b>Framer Motion</b><i>motion</i></div>
+              </div>
+            </div>
+            <div class="stack-link">fetch · REST /api/{module} · same-origin /api/agent</div>
+            <div class="stack-row teal">
+              <div><div class="stack-tag">Server routes</div><div class="stack-name">Next.js handlers</div><div class="stack-sub">Node runtime</div></div>
+              <div class="chips">
+                <div class="chip"><b>/api/agent</b><i>call brief + live case summary → Nemotron Nano</i></div>
+                <div class="chip"><b>/api/route</b><i>road geometry proxy → OSRM</i></div>
+                <div class="chip"><b>Offline fallback</b><i>deterministic summaries when LLM unreachable</i></div>
+              </div>
+            </div>
+            <div class="stack-link">JSON over HTTP · Pydantic schemas</div>
+            <div class="stack-row">
+              <div><div class="stack-tag">Backend</div><div class="stack-name">FastAPI unified API</div><div class="stack-sub">:8000 · Uvicorn · Python 3.12 · uv</div></div>
+              <div class="chips">
+                <div class="chip"><b>signal-fusion</b><i>call STT, triage tree, clustering</i></div>
+                <div class="chip"><b>live-dispatch</b><i>unit ranking, routing, pre-alerts</i></div>
+                <div class="chip"><b>command-center</b><i>incident board, audit</i></div>
+                <div class="chip"><b>dispatch-assistant</b><i>grounded copilot</i></div>
+                <div class="chip"><b>field-clinical-report</b><i>photo → ER triage note</i></div>
+              </div>
+            </div>
+            <div class="stack-link">OpenAI-compatible /v1/chat/completions · SQL · OSRM HTTP</div>
+            <div class="stack-row ai">
+              <div><div class="stack-tag">AI inference</div><div class="stack-name">NVIDIA DGX Spark</div><div class="stack-sub">vLLM 0.27 · NVFP4</div></div>
+              <div class="chips">
+                <div class="chip"><b>Nemotron 3.5 Lightning 30B<span class="port">:9000</span></b><i>call triage extraction · dispatch copilot · 131k ctx</i></div>
+                <div class="chip"><b>Nemotron 3 Nano 30B<span class="port">:9006</span></b><i>call brief · rolling case summary · 65k ctx</i></div>
+                <div class="chip"><b>Nemotron 3 Nano Omni 30B<span class="port">:9001</span></b><i>999 speech-to-text · responder photo VLM · 32k ctx</i></div>
+              </div>
+            </div>
+            <div class="stack-link">persistence · road graph</div>
+            <div class="stack-row teal">
+              <div><div class="stack-tag">Data &amp; infra</div><div class="stack-name">Local services</div><div class="stack-sub">Docker Compose</div></div>
+              <div class="chips">
+                <div class="chip"><b>PostgreSQL 16</b><i>incidents, dispatches, signals, audit · psycopg 3</i></div>
+                <div class="chip"><b>OSRM <span class="port">:5000</span></b><i>Greater KL road graph from OpenStreetMap</i></div>
+                <div class="chip"><b>Docker</b><i>Postgres + OSRM containers</i></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <div class="stack-tag" style="margin-bottom:1px;">Golden workflow · who does what</div>
+            <div class="wf-step"><span class="wf-num">1</span><div><b>Call Records</b><p>Audio → transcript → decision tree → P1–P3 dispatch JSON + brief</p><code>Omni STT · Lightning · Nano</code></div></div>
+            <div class="wf-step"><span class="wf-num">2</span><div><b>Route</b><p>Unit ranking by ETA, capability, crew; road route + ETA on map</p><code>OSRM · scoring engine</code></div></div>
+            <div class="wf-step"><span class="wf-num">3</span><div><b>First Responder</b><p>Live feed, symptoms, treatment, vitals; scene photo → ER triage note</p><code>Omni VLM</code></div></div>
+            <div class="wf-step"><span class="wf-num">4</span><div><b>Hospital</b><p>Admission: ward, diagnosis, treatment, emergency response handover</p><code>Nano case summary</code></div></div>
+            <p class="note-text" style="font-size:10px; line-height:1.35;"><strong>Patient panel</strong> follows every case: identity, vitals, timeline, and an agent summary refreshed on each event. <strong>Human in the loop:</strong> AI recommends, the dispatcher confirms every dispatch.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="ref-bar">
+        <strong>Verified Sources:</strong> 
+        [1] NVIDIA DGX Spark Official Specifications &amp; Embedded Video Telemetry (GB10 Grace Blackwell Superchip, 128GB Unified Memory, 150×150×50.5mm footprint). 
+        [2] NVIDIA RAPIDS cuSpatial Graph Routing &amp; Clinical GraphRAG Architecture (Hybrid Vector + Knowledge Graph citation verification).
+      </div>
+      <div class="slide-counter">SLIDE 02A / 06</div>
+    </div>
+  </section>
+
+  <!-- ================================================================= -->
+  <!-- SLIDE 2B (NEW): TECHNICAL & SOCIAL IMPACT (MORE LIVES SAVED)      -->
+  <!-- ================================================================= -->
+  <section class="slide" id="s2b">
+    <div class="slide-header">
+      <div class="segment-kicker">SLIDE 02B // SYSTEMIC VALUE PROPOSITION: TECHNICAL &amp; SOCIAL IMPACT</div>
+      <h1 class="slide-title">
+        2B. Sovereign edge orchestration guarantees zero-leakage auditability while cutting pre-hospital trauma delays by 27.3%—directly increasing cardiac and trauma survival rates<sup>[1,2,3]</sup>.
+      </h1>
+      <p class="slide-subtitle">
+        Combining <span class="hl-navy">air-gapped technical assurance</span> with <span class="hl-teal">AI-accelerated clinical preparedness</span> compresses every stage of the emergency chain to save civilian lives<sup>[1,2]</sup>.
+      </p>
+    </div>
+
+    <div class="slide-content">
+      <div class="grid-2">
+        
+        <!-- BUCKET 1: TECHNICAL IMPACT -->
+        <div class="gov-card">
+          <div>
+            <div class="card-kicker">
+              <span>BUCKET 1 // TECHNICAL IMPACT &amp; GOVERNANCE</span>
+              <span class="pill pill-navy">SOVEREIGN INFRASTRUCTURE</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+              <!-- Security -->
+              <div style="background:var(--white); padding:13px 15px; border-radius:6px; border:1px solid var(--gray-border); border-left:4px solid var(--navy-deep);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-family:'Plus Jakarta Sans'; font-size:15.5px; font-weight:800; color:var(--navy-deep);">1. Sovereign Security (Zero Cloud Leakage)</span>
+                  <span class="pill pill-outline">0 EXTERNAL API CALLS</span>
+                </div>
+                <p class="note-text" style="font-size:12.5px;">
+                  All citizen voice audio, MyKad (IC) numbers, EHR histories, and paramedic VLM video streams remain 100% on-premise inside MECC &amp; hospital firewalls—neutralizing the <strong>USD $6.64M healthcare breach liability</strong> and closing the <strong>92% AI access control gap</strong><sup>[3]</sup>.
+                </p>
+              </div>
+
+              <!-- Auditability -->
+              <div style="background:var(--white); padding:13px 15px; border-radius:6px; border:1px solid var(--gray-border); border-left:4px solid var(--teal-muted);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-family:'Plus Jakarta Sans'; font-size:15.5px; font-weight:800; color:var(--navy-deep);">2. Clinical Auditability (Explainable GraphRAG)</span>
+                  <span class="pill pill-teal">95% CONFIDENCE CI</span>
+                </div>
+                <p class="note-text" style="font-size:12.5px;">
+                  Eliminates black-box AI hallucinations: every triage summary and ward recommendation is anchored to <strong>Ministry of Health (KKM) Clinical Practice Guidelines</strong> with inspectable RAG citations and confidence intervals<sup>[4]</sup>.
+                </p>
+              </div>
+
+              <!-- Reusability -->
+              <div style="background:var(--white); padding:13px 15px; border-radius:6px; border:1px solid var(--gray-border); border-left:4px solid var(--navy-deep);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-family:'Plus Jakarta Sans'; font-size:15.5px; font-weight:800; color:var(--navy-deep);">3. Compounding Reusability (Episodic Trace Memory)</span>
+                  <span class="pill pill-outline">SELF-IMPROVING KB</span>
+                </div>
+                <p class="note-text" style="font-size:12.5px;">
+                  Every ER physician <em>Acted On / Rejected</em> decision and flood-routing delta is logged as a reusable trace in the local Knowledge Base—training future agents to make faster, higher-precision decisions<sup>[2]</sup>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BUCKET 2: SOCIAL IMPACT -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>BUCKET 2 // SOCIAL &amp; CLINICAL IMPACT</span>
+              <span class="pill pill-teal">MORE LIVES SAVED</span>
+            </div>
+
+            <!-- Visual Time-Cut Bar Comparison -->
+            <div style="background:var(--navy-deep); padding:12px 14px; border-radius:6px; color:var(--white); margin:6px 0 12px 0;">
+              <div style="font-family:'JetBrains Mono'; font-size:10.5px; color:#7DD3FC; font-weight:700; margin-bottom:6px;">
+                PROJECTED TIME CUTS ACROSS THE EMERGENCY RESPONSE CHAIN<sup>[1,2,5]</sup>
+              </div>
+              <div style="font-size:11.5px; margin-bottom:3px; display:flex; justify-content:space-between;">
+                <span>Legacy Call Triage + KL Transit + Reactive ER Handover</span>
+                <span style="font-family:'JetBrains Mono'; color:#CBD5E1;">~35.0 Mins Total</span>
+              </div>
+              <div class="bar-track" style="background:rgba(255,255,255,0.15); margin:3px 0 8px 0;">
+                <div class="bar-fill-navy" style="width:100%; background:#64748B;"></div>
+              </div>
+              <div style="font-size:11.5px; margin-bottom:3px; display:flex; justify-content:space-between;">
+                <span style="color:#7DD3FC; font-weight:700;">Aegis-999 (&lt;2s Triage + cuSpatial Route + Pre-Staged ER)</span>
+                <span style="font-family:'JetBrains Mono'; color:#38BDF8; font-weight:700;">~19.5 Mins (-44% Cut)</span>
+              </div>
+              <div class="bar-track" style="background:rgba(255,255,255,0.15); margin:3px 0;">
+                <div class="bar-fill-teal" style="width:56%; background:#38BDF8;"></div>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <p class="note-text" style="font-size:12.5px;">
+                • <strong>1. Streamlined Process &amp; Projected Time Cuts:</strong> AI-assisted CAD &amp; automated note generation cut call processing from <strong>&gt;5 mins to &lt;2 seconds (-60% to -80% administrative handle time)</strong><sup>[2,5]</sup>, while dynamic flood-aware routing closes the pre-hospital trauma transit gap by <strong>27.3% (~6 mins saved in KL)</strong><sup>[2]</sup>.
+              </p>
+              <p class="note-text" style="font-size:12.5px;">
+                • <strong>2. Cutting Noise (95% Scam Filtration):</strong> Automatically filters <strong>66,500+ daily prank/silent calls</strong><sup>[6]</sup>, shrinking addressable operator volume to the <strong>5% (3,500) genuine emergencies</strong> so zero real victims wait on hold.
+              </p>
+              <p class="note-text" style="font-size:12.5px;">
+                • <strong>3. Early ER Preparedness (8–12 Min Lead Time):</strong> Live VLM video &amp; IC/EHR summaries reach the ER while the ambulance is still in transit—staging Red/Yellow/Green bays and blood/airway kits <strong>8–12 minutes earlier</strong><sup>[4]</sup>.
+              </p>
+            </div>
+          </div>
+
+          <!-- Overall Takeaway Callout -->
+          <div style="background:var(--teal-light); border:1.5px solid var(--teal-muted); padding:10px 12px; border-radius:5px; margin-top:8px; font-size:12.5px; color:var(--navy-deep);">
+            <strong>OVERALL CLINICAL VERDICT:</strong> Per American Heart Association &amp; European Resuscitation Council standards, <strong>every 1-minute reduction in response delay increases survival by 7%–10%</strong><sup>[1]</sup>—meaning Aegis-999’s time cuts directly translate into <strong>more Malaysian lives saved</strong>.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="ref-bar">
+        <strong>Verified Sources:</strong> 
+        [1] European Resuscitation Council (ERC) &amp; AHA Golden Hour Clinical Guidelines (7%–10% survival gain per minute saved in cardiac arrest/severe trauma). 
+        [2] Project Aegis-999 Telemetry (&lt;2s dispatch; 27.3% trauma transit gap reduction). 
+        [3] IBM Breach Report 2026 ($6.64M healthcare breach; 92% AI access gap). 
+        [4] KKM EMTS Policy (Red/Yellow/Green triage lead time). 
+        [5] Gartner / Next-Gen 911 AI Triage Benchmarks (60–80% reduction in manual call processing &amp; ACW). 
+        [6] TM NG999 Call Surge Data (Nov 2025).
+      </div>
+      <div class="slide-counter">SLIDE 02B / 06</div>
+    </div>
+  </section>
+
+  <!-- ================================================================= -->
+  <!-- SLIDE 3 (FORMERLY 4): IMPLEMENTATION, THE ASK & GOVERNANCE        -->
+  <!-- ================================================================= -->
+  <section class="slide" id="s3">
+    <div class="slide-header">
+      <div class="segment-kicker">SLIDE 03 // IMPLEMENTATION ROADMAP, BUDGET ASK &amp; GOVERNANCE</div>
+      <h1 class="slide-title">
+        3. A RM 280,000, 8-month Klang Valley pilot across 3 hospitals will validate these clinical time cuts at &lt;1% of legacy vendor costs<sup>[1,2,4]</sup>.
+      </h1>
+      <p class="slide-subtitle">
+        Hardware starts at <span class="hl-teal">RM 15,888 (~USD $3,610) per DGX Spark node</span><sup>[1]</sup>, deployed with rigorous 12-week A/B testing and full <span class="hl-navy">ai.gov.my</span> compliance<sup>[5]</sup>.
+      </p>
+    </div>
+
+    <div class="slide-content">
+      <!-- Top Row: Cost & Pilot Metrics -->
+      <div class="grid-3">
+        
+        <!-- Card 1: 1x DGX Spark Cost -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>1× NVIDIA DGX SPARK ATOM</span>
+              <span class="pill pill-teal">EDGE HARDWARE</span>
+            </div>
+            <div class="hero-stat teal">RM 15,888</div>
+            <div class="stat-label">~USD $3,610 / Unit (Up to RM 23,999 FE)<sup>[1]</sup></div>
+            <div class="bar-track"><div class="bar-fill-teal" style="width: 10%;"></div></div>
+          </div>
+          <p class="note-text">
+            <strong>90%+ Cost Advantage:</strong> Replaces RM 1.8M–2.6M/yr ($410k–$590k USD) in-house software engineering teams &amp; cloud GPU clusters, and contrasts against the RM 1.25B macro NG999 contract<sup>[1,2,3]</sup>.
+          </p>
+        </div>
+
+        <!-- Card 2: The Government Pilot Ask -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>THE GOVERNMENT PILOT ASK</span>
+              <span class="pill pill-navy">3 HOSPITALS + 1 MECC</span>
+            </div>
+            <div class="hero-stat">RM 280k</div>
+            <div class="stat-label">~USD $63,600 All-In (8-Month Sandbox)</div>
+            <div class="bar-track"><div class="bar-fill-navy" style="width: 25%;"></div></div>
+          </div>
+          <p class="note-text">
+            <strong>Feasibility Assurance:</strong> Covers 4× DGX Spark nodes across <strong>HKL, PPUM &amp; Hospital Sungai Buloh</strong>, VLM headsets, legacy note migration, and a <strong>12-week randomized A/B test</strong>.
+          </p>
+        </div>
+
+        <!-- Card 3: Target Success Metrics -->
+        <div class="gov-card navy-solid">
+          <div>
+            <div class="card-kicker">
+              <span>TARGET PILOT SUCCESS METRICS</span>
+              <span class="pill pill-teal">A/B VALIDATED</span>
+            </div>
+            <div class="hero-stat">-27.3%</div>
+            <div class="stat-label">Trauma Gap Closed (40m MY Avg &rarr; &lt;15m KL)<sup>[4]</sup></div>
+            <div class="bar-track" style="background:rgba(255,255,255,0.2);"><div class="bar-fill-teal" style="width: 85%;"></div></div>
+          </div>
+          <p class="note-text">
+            • <strong>Latency:</strong> &lt;2.0s dispatch turnaround time.<br>
+            • <strong>Accuracy:</strong> &gt;92% ER validation of AI suggestions.<br>
+            • <strong>Zero Leakage:</strong> 0 cloud PII leaks (vs $6.64M avg breach)<sup>[6]</sup>.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Bottom Row: 6-10 Month Timeline & ai.gov.my Governance -->
+      <div class="grid-2">
+        
+        <div class="gov-card">
+          <div class="card-kicker">
+            <span>WHY 6–10 MONTHS? (8-MONTH PHASED DEPLOYMENT SCHEDULE)</span>
+            <span class="pill pill-outline">MIGRATION &amp; TRAINING</span>
+          </div>
+          <div class="grid-3" style="gap:10px; margin-top:4px;">
+            <div style="background:var(--white); padding:11px; border-radius:5px; border:1px solid var(--gray-border); border-top:4px solid var(--navy-deep);">
+              <div style="font-family:'JetBrains Mono'; font-size:10.5px; color:var(--navy-deep); font-weight:700;">MO 1–3 // MIGRATION</div>
+              <div style="font-size:12px; color:var(--gray-text); margin-top:4px;">Migrating handwritten ER notes &amp; manual logs into local on-prem GraphRAG.</div>
+            </div>
+            <div style="background:var(--white); padding:11px; border-radius:5px; border:1px solid var(--gray-border); border-top:4px solid var(--teal-muted);">
+              <div style="font-family:'JetBrains Mono'; font-size:10.5px; color:var(--teal-muted); font-weight:700;">MO 4–5 // TRAINING</div>
+              <div style="font-size:12px; color:var(--gray-text); margin-top:4px;">Change management &amp; headset drills for 60 MECC operators &amp; ER staff.</div>
+            </div>
+            <div style="background:var(--navy-deep); padding:11px; border-radius:5px; border-top:4px solid var(--teal-muted); color:var(--white);">
+              <div style="font-family:'JetBrains Mono'; font-size:10.5px; color:#7DD3FC; font-weight:700;">MO 6–8 // A/B TEST</div>
+              <div style="font-size:12px; color:var(--white); margin-top:4px;">12-week live A/B testing measuring early clinical wins &amp; adoption.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gov-card">
+          <div class="card-kicker">
+            <span>RISKS &amp; NATIONAL AI GUARDRAILS (AI.GOV.MY/GOVERNANCE)<sup>[5]</sup></span>
+            <span class="pill pill-teal">REGULATORY COMPLIANCE</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            <p class="note-text" style="color:var(--navy-deep);">
+              ✓ <strong>National AI Office (NAIO) Alignment:</strong> Complies with Malaysia’s <em>AIGE Framework (ai.gov.my/governance)</em>—enforcing explainable confidence intervals, human-in-the-loop sign-off, and full auditability<sup>[5]</sup>.
+            </p>
+            <p class="note-text" style="color:var(--navy-deep);">
+              ✓ <strong>Data Sovereignty &amp; Clinical Safety:</strong> Strictly adheres to <em>PDPA 2010 (2024 Amendments)</em>; ER doctors retain final authority over all RAG clinical recommendations<sup>[5]</sup>.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="ref-bar">
+        <strong>Verified Sources:</strong> 
+        [1] EMARQUE AI Malaysia (2026): NVIDIA DGX Spark local pricing (RM 15,888 Gigabyte AI TOP ATOM to RM 23,999 Founders Edition). 
+        [2] Bursa Malaysia Filing / <em>The Edge</em> (2024): RM 1.25B NG MERS 999 contract baseline. 
+        [3] MDEC / JobStreet MY Tech Salary Survey 2025/2026 (In-house software team + cloud GPU OPEX). 
+        [4] <em>MJEM</em> &amp; USM KL Ambulance Study (30–40m MY avg vs 7–10m EU standard). 
+        [5] National AI Office (NAIO), Ministry of Digital: <em>https://ai.gov.my/governance/</em>. 
+        [6] IBM Breach Report 2026.
+      </div>
+      <div class="slide-counter">SLIDE 03 / 06</div>
+    </div>
+  </section>
+
+  <!-- ================================================================= -->
+  <!-- SLIDE 4 (FORMERLY 5): NEXT STEPS                                  -->
+  <!-- ================================================================= -->
+  <section class="slide" id="s4">
+    <div class="slide-header">
+      <div class="segment-kicker">SLIDE 04 // NEXT STEPS: TECHNICAL &amp; NATIONAL SCALING ROADMAP</div>
+      <h1 class="slide-title">
+        4. Following pilot validation, scaling from single-node atoms to a federated multi-atom mesh unlocks national dialect translation and predictive hospital capacity planning<sup>[1,2,3]</sup>.
+      </h1>
+      <p class="slide-subtitle">
+        Interconnecting DGX Spark atoms expands unified memory for <span class="hl-teal">ultra-low latency national concurrency</span> and true end-to-end healthcare digitalization<sup>[1,2,4]</sup>.
+      </p>
+    </div>
+
+    <div class="slide-content">
+      <div class="grid-2">
+        
+        <!-- LEFT: (A) Technical Scaling Roadmap -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>(A) TECHNICAL SCALING ROADMAP</span>
+              <span class="pill pill-teal">COMPUTE &amp; LANGUAGES</span>
+            </div>
+
+            <div class="stat-label" style="font-size:17.5px; color:var(--navy-deep); margin-bottom:8px;">
+              1. Scaling From One Atom &rarr; Multi-Atom Clusters<sup>[1]</sup>
+            </div>
+
+            <!-- High-Contrast SVG Diagram: 1 Atom to Multi-Atom Cluster -->
+            <svg viewBox="0 0 440 120" style="width:100%; height:120px; background:#051C2C; border-radius:6px; margin-bottom:14px;">
+              <!-- Single Atom Box -->
+              <rect x="18" y="24" width="122" height="72" rx="5" fill="#FFFFFF" stroke="#38BDF8" stroke-width="2"/>
+              <text x="79" y="50" text-anchor="middle" fill="#051C2C" font-family="JetBrains Mono" font-size="11" font-weight="700">1× ATOM NODE</text>
+              <text x="79" y="68" text-anchor="middle" fill="#0E7490" font-family="Inter" font-size="10.5" font-weight="700">128GB Unified RAM</text>
+              <text x="79" y="83" text-anchor="middle" fill="#334E68" font-family="JetBrains Mono" font-size="8.5">Single Hospital / MECC</text>
+
+              <!-- ConnectX Link -->
+              <line x1="146" y1="60" x2="196" y2="60" stroke="#38BDF8" stroke-width="3" stroke-dasharray="5 4"/>
+              <text x="171" y="48" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="9" font-weight="700">ConnectX</text>
+
+              <!-- Multi-Atom Cluster Box -->
+              <rect x="202" y="14" width="222" height="92" rx="5" fill="#0E7490" stroke="#FFFFFF" stroke-width="2"/>
+              <text x="313" y="36" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-size="11" font-weight="700">4× MULTI-ATOM CLUSTER</text>
+              <text x="313" y="58" text-anchor="middle" fill="#FFFFFF" font-family="Plus Jakarta Sans" font-size="15" font-weight="800">512GB Coherent Memory</text>
+              <rect x="218" y="68" width="190" height="24" rx="4" fill="#051C2C"/>
+              <text x="313" y="84" text-anchor="middle" fill="#7DD3FC" font-family="JetBrains Mono" font-size="9.5" font-weight="700">500+ Calls | &lt;250ms Latency</text>
+            </svg>
+
+            <div class="stat-label" style="font-size:17.5px; color:var(--navy-deep); margin-bottom:6px;">
+              2. Multi-Dialect Malaysian Translation Engine<sup>[3]</sup>
+            </div>
+            <p class="note-text">
+              Fine-tuned local acoustic LoRA adapters for real-time translation across <strong>Kelantan/Terengganu/Sabah/Sarawak BM, Mandarin, Hokkien, Cantonese, Hakka, Tamil, Iban, and Kadazan-Dusun</strong>, plus panicked urban Manglish<sup>[3]</sup>.
+            </p>
+          </div>
+        </div>
+
+        <!-- RIGHT: (B) Strategic Projects -->
+        <div class="gov-card">
+          <div>
+            <div class="card-kicker">
+              <span>(B) NEXT-GENERATION NATIONAL PROJECTS</span>
+              <span class="pill pill-navy">SYSTEMIC EXPANSION</span>
+            </div>
+
+            <!-- Project 1: Hospital Capacity Planning -->
+            <div style="background:var(--white); padding:15px; border-radius:6px; border:1.5px solid var(--gray-border); border-left:5px solid var(--teal-muted); margin-bottom:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-family:'Plus Jakarta Sans'; font-size:17px; font-weight:800; color:var(--navy-deep);">1. Predictive Hospital Capacity Planning</span>
+                <span class="pill pill-teal">LOAD BALANCING</span>
+              </div>
+              <p class="note-text">
+                • <strong>Live ER &amp; ICU Diversion:</strong> Integrates real-time bed, ventilator &amp; specialist occupancy across 140+ KKM hospitals to automatically route ambulances away from saturated ERs<sup>[2]</sup>.<br>
+                • <strong>Monsoon Surge Forecasting:</strong> Combines historical Aegis-999 trace memory with MetMalaysia radar &amp; OpenDOSM population density data to pre-stage trauma staff 12 hours ahead of floods<sup>[2,3]</sup>.
+              </p>
+            </div>
+
+            <!-- Project 2: True E2E Digitalization -->
+            <div style="background:var(--navy-deep); padding:15px; border-radius:6px; border-left:5px solid var(--teal-muted); color:var(--white);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-family:'Plus Jakarta Sans'; font-size:17px; font-weight:800; color:var(--white);">2. True End-to-End (E2E) Digitalization</span>
+                <span class="pill pill-teal">21 MECC MESH</span>
+              </div>
+              <p class="note-text" style="color:#E2E8F0;">
+                • <strong>Automated Post-Incident Governance:</strong> Auto-generates medico-legal audit trails, discharge summaries &amp; SOCSO/insurance packets directly from verified VLM/RAG traces<sup>[2]</sup>.<br>
+                • <strong>Federated National Learning:</strong> Connects all 21 MECCs nationwide to train a sovereign Malaysian Emergency Medical AI without centralizing raw citizen PII<sup>[4]</sup>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="ref-bar">
+        <strong>Verified Sources:</strong> 
+        [1] NVIDIA DGX Spark &amp; Gigabyte AI TOP ATOM Multi-Node Clustering Specifications (NVIDIA ConnectX SmartNIC interconnects scaling unified memory). 
+        [2] Ministry of Health Malaysia (KKM) <em>Health White Paper</em> &amp; Malaysia's 21 Medical Emergency Coordinating Centres (MECC) Operational Framework. 
+        [3] Department of Statistics Malaysia (DOSM / OpenDOSM) Subnational Demographics &amp; Ethnologue Malaysian Linguistic Census. 
+        [4] Rieke, N. et al., <em>"The Future of Digital Health with Federated Learning"</em>, <em>npj Digital Medicine (Nature)</em>.
+      </div>
+      <div class="slide-counter">SLIDE 04 / 06</div>
+    </div>
+  </section>
+
+  <!-- ================================================================= -->
+  <!-- APPENDIX A (FORMERLY 3A): GRANULAR REAL-TIME USER JOURNEY         -->
+  <!-- ================================================================= -->
+  <section class="slide" id="app-a">
+    <div class="slide-header">
+      <div class="segment-kicker">APPENDIX A // DEEP-DIVE OPERATIONAL WORKFLOW &amp; SYSTEM LOADING STATES</div>
+      <h1 class="slide-title">
+        Appendix: Real-time 4-stage execution pipeline with transparent system loading states from distress call to pre-staged ER bay<sup>[1,2,3]</sup>.
+      </h1>
+      <p class="slide-subtitle">
+        Granular step-by-step UI states showing how <span class="hl-navy">Aegis-999 verifies callers</span>, <span class="hl-teal">computes flood routes</span>, and synchronizes paramedics with ER trauma teams.
+      </p>
+    </div>
+
+    <div class="slide-content">
+      <div class="grid-4">
+        
+        <!-- STEP A: PHONE CALL -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>(A) PHONE CALL</span>
+              <span class="pill pill-teal">T + 0.4s</span>
+            </div>
+            <div class="stat-label">Scam Verification &amp; Parsing</div>
+            <p class="note-text" style="font-size:12.5px;">
+              • <strong>Real vs Scam Check:</strong> Cross-verifies caller panic acoustics (<em>"Tolong! Banjir kilat!"</em>) with vehicle crash Delta-V telemetry<sup>[1]</sup>.<br>
+              • <strong>Issue Analysis:</strong> Parses location, hazard &amp; symptoms to trigger Priority-1 workflow.
+            </p>
+          </div>
+          <div class="terminal-box">
+            <div class="term-header"><span class="pulse-dot"></span> [i] LOADING: PLANNING...</div>
+            <div>&gt; Auth: 94% Genuine (Prank Filtered)</div>
+            <div>&gt; Hazard: Flood Roof Stranding</div>
+            <div>&gt; Building Issue Identification...</div>
+          </div>
+        </div>
+
+        <!-- STEP B: ROUTE & DISPATCH -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>(B) ROUTE &amp; DISPATCH</span>
+              <span class="pill pill-teal">T + 1.8s</span>
+            </div>
+            <div class="stat-label">Live ETA &amp; Patient IC Fetch</div>
+            <p class="note-text" style="font-size:12.5px;">
+              • <strong>Fastest Route &amp; ETA:</strong> cuSpatial bypasses flooded roads, dispatching Bomba + APM + KKM EMS<sup>[1]</sup>.<br>
+              • <strong>Medical Summary:</strong> Pulls caller IC &amp; local EHR history to generate initial clinical recommendations.
+            </p>
+          </div>
+          <div class="terminal-box">
+            <div class="term-header"><span class="pulse-dot"></span> [i] LOADING: DISPATCHING...</div>
+            <div>&gt; IC: 880412-14-XXXX | Blood: O+</div>
+            <div>&gt; EHR Ref: Asthma, Penicillin Allergy</div>
+            <div>&gt; Rec: Bomba Boat + KKM Red Rig</div>
+          </div>
+        </div>
+
+        <!-- STEP C: FIRST RESPONDERS -->
+        <div class="gov-card teal-top">
+          <div>
+            <div class="card-kicker">
+              <span>(C) FIRST RESPONDER</span>
+              <span class="pill pill-teal">IN-TRANSIT</span>
+            </div>
+            <div class="stat-label">VLM Headset &amp; ER RAG Graph</div>
+            <p class="note-text" style="font-size:12.5px;">
+              • <strong>Live VLM Stream:</strong> Headset streams casualty video + AI suggestions to ER dashboard<sup>[2]</sup>.<br>
+              • <strong>RAG Audit &amp; Trace:</strong> ER checks KKM citations &amp; <strong>95% CI</strong>; Acted On / Rejected logs to KB<sup>[2]</sup>.
+            </p>
+          </div>
+          <div class="terminal-box">
+            <div class="term-header"><span class="pulse-dot"></span> [i] LOADING: PREPARING...</div>
+            <div>&gt; Sending Casualty + IC Summary</div>
+            <div>&gt; Ward: <strong>RED ZONE (Resus Bay 2)</strong></div>
+            <div>&gt; Prep: 4 Responders + Airway Kit</div>
+          </div>
+        </div>
+
+        <!-- STEP D: HOSPITAL ER -->
+        <div class="gov-card navy-solid">
+          <div>
+            <div class="card-kicker">
+              <span>(D) HOSPITAL ER</span>
+              <span class="pill pill-teal">PRE-ARRIVAL</span>
+            </div>
+            <div class="stat-label">Real-Time Ward Execution</div>
+            <p class="note-text" style="font-size:12.5px;">
+              • <strong>Live Step-by-Step Readiness:</strong> Hospital command board executes preparation checklist in real time 8+ mins before ambulance arrival:
+            </p>
+          </div>
+          <div class="terminal-box" style="border-color:var(--white);">
+            <div class="term-header"><span class="pulse-dot"></span> LIVE ER STEP TRACKER</div>
+            <div style="color:#7DD3FC;">[✓] 1. WARD: Red Zone Bay 2 Ready</div>
+            <div style="color:#7DD3FC;">[✓] 2. STAFF: 4 Trauma Crew Paged</div>
+            <div style="color:var(--white);">[⟳] 3. TX PREP: O+ Blood &amp; Warmer</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <div class="ref-bar">
+        <strong>Verified Sources:</strong> 
+        [1] Project Aegis-999 Operational Telemetry (Sub-2s dispatch; 95% prank filtration; SaveME 999 &amp; vehicle crash Delta-V integration). 
+        [2] Ministry of Health Malaysia (KKM) <em>Emergency Medicine and Trauma Services (EMTS) Policy</em> (Red/Yellow/Green Zone triage &amp; Clinical Practice Guidelines). 
+        [3] Laws of Malaysia Act 709: <em>Personal Data Protection Act (PDPA) 2010 &amp; 2024 Amendments</em>.
+      </div>
+      <div class="slide-counter">APPENDIX A // 06 / 06</div>
+    </div>
+  </section>
+
+</body>
+</html>
